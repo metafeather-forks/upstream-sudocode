@@ -59,14 +59,14 @@ export function FollowUpDialog({ open, onSubmit, onCancel }: FollowUpDialogProps
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Submit on Cmd+Enter (macOS) or Ctrl+Enter (Windows/Linux)
+    // Plain Enter creates newline (default behavior)
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       if (canSubmit) {
         handleSubmit()
       }
     }
-    // Shift+Enter creates newline (default behavior, no need to handle)
   }
 
   const canSubmit = feedback.trim().length > 0 && !isSubmitting

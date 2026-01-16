@@ -866,14 +866,14 @@ export function AgentConfigPanel({
       return
     }
 
-    // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Submit on Cmd+Enter (macOS) or Ctrl+Enter (Windows/Linux)
+    // Plain Enter creates newline (default behavior)
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       if (canStart) {
         handleStart()
       }
     }
-    // Shift+Enter creates newline (default behavior, no need to handle)
   }
 
   // Voice input state for live transcription

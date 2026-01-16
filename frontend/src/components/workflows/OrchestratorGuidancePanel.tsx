@@ -64,8 +64,9 @@ export function OrchestratorGuidancePanel({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Enter submits, Shift+Enter adds newline
-      if (e.key === 'Enter' && !e.shiftKey) {
+      // Cmd+Enter (macOS) or Ctrl+Enter (Windows/Linux) submits
+      // Plain Enter adds newline (default behavior)
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         handleSubmit()
       }
@@ -125,7 +126,7 @@ export function OrchestratorGuidancePanel({
 
       {/* Hint */}
       <div className="px-4 pb-2 text-xs text-muted-foreground">
-        Press Enter to send, Shift+Enter for new line
+        Press ⌘+Enter to send
       </div>
     </div>
   )
