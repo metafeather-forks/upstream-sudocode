@@ -767,8 +767,13 @@ export function IssuePanel({
   useEffect(() => {
     if (viewMode === 'markdown' && textareaRef.current) {
       const textarea = textareaRef.current
+      // Preserve scroll position to prevent jumping when height changes
+      const scrollY = window.scrollY
+      const scrollX = window.scrollX
       textarea.style.height = 'auto'
       textarea.style.height = `${textarea.scrollHeight}px`
+      // Restore scroll position
+      window.scrollTo(scrollX, scrollY)
     }
   }, [content, viewMode])
 
@@ -975,8 +980,13 @@ export function IssuePanel({
                 style={{ maxHeight: '2.5em' }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement
+                  // Preserve scroll position to prevent jumping when height changes
+                  const scrollY = window.scrollY
+                  const scrollX = window.scrollX
                   target.style.height = 'auto'
                   target.style.height = `${Math.min(target.scrollHeight, 40)}px`
+                  // Restore scroll position
+                  window.scrollTo(scrollX, scrollY)
                 }}
               />
             </div>

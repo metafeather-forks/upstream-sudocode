@@ -70,8 +70,13 @@ export function IssueEditor({ issue, onSave, onCancel, isLoading = false }: Issu
   useEffect(() => {
     if (viewMode === 'markdown' && textareaRef.current) {
       const textarea = textareaRef.current
+      // Preserve scroll position to prevent jumping when height changes
+      const scrollY = window.scrollY
+      const scrollX = window.scrollX
       textarea.style.height = 'auto'
       textarea.style.height = `${textarea.scrollHeight}px`
+      // Restore scroll position
+      window.scrollTo(scrollX, scrollY)
     }
   }, [content, viewMode])
 
