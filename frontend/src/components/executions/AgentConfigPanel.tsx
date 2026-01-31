@@ -466,7 +466,7 @@ export function AgentConfigPanel({
     }
 
     // Final fallback
-    return 'claude-code'
+    return 'copilot'
   })
   const [isHoveringButton, setIsHoveringButton] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -663,7 +663,7 @@ export function AgentConfigPanel({
       }
 
       // Final fallback
-      return 'claude-code'
+      return 'copilot'
     }
 
     setSelectedAgentType(loadAgentTypeForIssue())

@@ -88,7 +88,7 @@ function isValidPersistedSettings(value: unknown): value is PersistedWorkflowSet
   }
 
   // Validate agentType
-  const validAgentTypes = ['claude-code', 'codex', 'copilot', 'cursor']
+  const validAgentTypes = ['claude-code', 'codex', 'copilot', 'cursor', 'gemini', 'opencode']
   if (typeof settings.agentType !== 'string' || !validAgentTypes.includes(settings.agentType)) {
     return false
   }

@@ -296,7 +296,7 @@ export function WorkflowCard({
           <span className="inline-flex items-center gap-1.5">
             <span className="font-medium">Agent:</span>
             <span className="rounded bg-muted px-1.5 py-0.5">
-              {config?.defaultAgentType || 'claude-code'}
+              {config?.defaultAgentType || 'copilot'}
             </span>
           </span>
           {workflow.branchName && (

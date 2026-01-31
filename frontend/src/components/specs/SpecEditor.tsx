@@ -129,7 +129,7 @@ After creating the spec, summarize what you created.`
           mode: 'local',
         },
         prompt,
-        agentType: 'claude-code',
+        agentType: 'copilot',
       })
 
       toast.success('Started co-writing spec')

@@ -298,7 +298,7 @@ export function AgentSettingsDialog({
                   {availableAgents && availableAgents.length > 0 && onAgentTypeChange && (
                     <AgentSelector
                       agents={availableAgents}
-                      selectedAgent={agentType || 'claude-code'}
+                      selectedAgent={agentType || 'copilot'}
                       onChange={onAgentTypeChange}
                       label="AI Agent"
                       description="Select the AI coding agent to use"
