@@ -46,6 +46,7 @@ import {
   ArrowLeft,
   Lightbulb,
   Loader2,
+  Sparkles,
 } from 'lucide-react'
 import type { IssueFeedback, Relationship, EntityType, RelationshipType } from '@/types/api'
 import type { WorkflowSource } from '@/types/workflow'
@@ -120,6 +121,7 @@ export default function SpecDetailPage() {
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false)
   const [workflowDefaultSource, setWorkflowDefaultSource] = useState<WorkflowSource | undefined>()
   const [planDialogOpen, setPlanDialogOpen] = useState(false)
+  const [editSpecDialogOpen, setEditSpecDialogOpen] = useState(false)
 
   // Refresh state
   const [showRefreshConflictDialog, setShowRefreshConflictDialog] = useState(false)
@@ -201,6 +203,14 @@ export default function SpecDetailPage() {
 First review the spec content and the existing codebase. Ask clarifying questions if there are any ambiguities.
 
 Create actionable issues that implement its requirements. Each issue should be specific, well-scoped, and include clear acceptance criteria. Make sure to link each issue back to the spec and capture anly blocking dependencies.`
+  }, [spec])
+
+  // Default prompt for editing the spec with an agent
+  const editSpecPrompt = useMemo(() => {
+    if (!spec) return ''
+    return `Load and edit spec [[${spec.id}]] using the sudocode MCP tool \`show_spec\`.
+
+First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec content, then help me review and improve it.`
   }, [spec])
 
   // Compute all descendant IDs to prevent circular parent references
@@ -1080,6 +1090,17 @@ Create actionable issues that implement its requirements. Each issue should be s
                           </TooltipTrigger>
                           <TooltipContent>Markdown</TooltipContent>
                         </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setEditSpecDialogOpen(true)}
+                              className="rounded p-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit with AI</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TooltipProvider>
                   </div>
@@ -1180,6 +1201,14 @@ Create actionable issues that implement its requirements. Each issue should be s
         defaultPrompt={planImplementationPrompt}
         title="Plan Implementation"
         description="Create implementing issues for this spec using an AI agent."
+      />
+
+      <AdhocExecutionDialog
+        open={editSpecDialogOpen}
+        onClose={() => setEditSpecDialogOpen(false)}
+        defaultPrompt={editSpecPrompt}
+        title="Edit Spec"
+        description="Edit this spec collaboratively with an AI agent."
       />
 
       {/* Refresh Conflict Dialog */}
