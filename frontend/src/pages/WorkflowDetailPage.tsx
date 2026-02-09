@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { useProjectRoutes } from '@/hooks/useProjectRoutes'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -518,20 +519,35 @@ export default function WorkflowDetailPage() {
               >
                 <div className="flex h-full flex-col">
                   {/* Tab Switcher with collapse button */}
-                  <div className="flex items-center border-b bg-muted/30">
+                  <div className="flex items-center border-b bg-muted/30" data-issue-panel-header>
                     {hasOrchestrator ? (
                       <>
                         <button
                           onClick={() => setActiveTab('steps')}
                           className={cn(
-                            'flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                            'flex flex-1 items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors',
                             activeTab === 'steps'
                               ? 'border-b-2 border-primary bg-background text-foreground'
                               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                           )}
                         >
-                          <ListTree className="h-4 w-4" />
-                          Steps
+                          <ListTree className="h-4 w-4 flex-shrink-0" />
+                          {selectedIssue ? (
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <Link
+                                to={paths.issue(selectedIssue.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-shrink-0"
+                              >
+                                <Badge variant="issue" className="font-mono hover:opacity-80">
+                                  {selectedIssue.id}
+                                </Badge>
+                              </Link>
+                              <span className="truncate">{selectedIssue.title}</span>
+                            </span>
+                          ) : (
+                            'Steps'
+                          )}
                         </button>
                         <button
                           onClick={() => setActiveTab('orchestrator')}
@@ -552,8 +568,22 @@ export default function WorkflowDetailPage() {
                       </>
                     ) : (
                       <div className="flex flex-1 items-center gap-2 px-4 py-2.5 text-sm font-medium">
-                        <ListTree className="h-4 w-4" />
-                        Step Details
+                        <ListTree className="h-4 w-4 flex-shrink-0" />
+                        {selectedIssue ? (
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <Link
+                              to={paths.issue(selectedIssue.id)}
+                              className="flex-shrink-0"
+                            >
+                              <Badge variant="issue" className="font-mono hover:opacity-80">
+                                {selectedIssue.id}
+                              </Badge>
+                            </Link>
+                            <span className="truncate">{selectedIssue.title}</span>
+                          </span>
+                        ) : (
+                          'Step Details'
+                        )}
                       </div>
                     )}
                     <Button

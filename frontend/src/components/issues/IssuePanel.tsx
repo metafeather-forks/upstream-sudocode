@@ -593,6 +593,10 @@ export function IssuePanel({
       const issueCard = clickedElement.closest('[data-issue-id]')
       if (issueCard) return
 
+      // Don't close if clicking on the issue panel header (workflow step details)
+      const issuePanelHeader = clickedElement.closest('[data-issue-panel-header]')
+      if (issuePanelHeader) return
+
       // Don't close if clicking on the resize handle
       const resizeHandle = clickedElement.closest('[data-panel-resize-handle-id]')
       if (resizeHandle) return
