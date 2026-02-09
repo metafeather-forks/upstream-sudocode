@@ -52,7 +52,7 @@ export default function WorkflowsPage() {
   const { paths } = useProjectRoutes()
   const queryClient = useQueryClient()
   const { data: workflows = [], isLoading } = useWorkflows()
-  const { create, start, delete: deleteWorkflow, isDeleting } = useWorkflowMutations()
+  const { create, delete: deleteWorkflow, isDeleting } = useWorkflowMutations()
   const { data: repoInfo } = useRepositoryInfo()
   const { currentProjectId } = useProject()
   const { data: currentProject } = useProjectById(currentProjectId)
@@ -107,7 +107,7 @@ export default function WorkflowsPage() {
   const handleCreate = async (options: Parameters<typeof create>[0]) => {
     const workflow = await create(options)
     // Start the workflow immediately after creation
-    await start(workflow.id)
+    // await start(workflow.id)
     setCreateDialogOpen(false)
     // Navigate to the workflow detail page
     navigate(paths.workflow(workflow.id))

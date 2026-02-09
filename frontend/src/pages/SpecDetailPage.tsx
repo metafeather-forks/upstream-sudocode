@@ -418,7 +418,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
     async (options: Parameters<typeof createWorkflow>[0]) => {
       const workflow = await createWorkflow(options)
       // Start the workflow immediately after creation
-      await startWorkflow(workflow.id)
+      // await startWorkflow(workflow.id)
       setWorkflowDialogOpen(false)
       // Navigate to the created workflow's detail page
       navigate(paths.workflow(workflow.id))
