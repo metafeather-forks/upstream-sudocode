@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import type { Workflow, CreateWorkflowOptions, EscalationResponseRequest, EscalationData } from '@/types/workflow'
 import type { Issue, WebSocketMessage } from '@/types/api'
 import { workflowsApi, ListWorkflowsParams, issuesApi } from '@/lib/api'
+import { deriveWorkflowStepStatuses } from '@/utils/workflow-status'
 import { useWebSocketContext } from '@/contexts/WebSocketContext'
 import { useProject } from '@/hooks/useProject'
 
@@ -221,8 +222,21 @@ export function useWorkflow(id: string | undefined) {
     return issuesMap
   }, [workflowQuery.data, issuesQuery.data])
 
+  // Derive step statuses from current issue statuses
+  // This syncs workflow step display with issue changes made outside the workflow
+  const workflowWithDerivedStatus = useMemo(() => {
+    if (!workflowQuery.data || !issues) return workflowQuery.data
+
+    const derivedSteps = deriveWorkflowStepStatuses(workflowQuery.data.steps, issues)
+
+    // Return original workflow if no steps changed (preserves reference equality)
+    if (derivedSteps === workflowQuery.data.steps) return workflowQuery.data
+
+    return { ...workflowQuery.data, steps: derivedSteps }
+  }, [workflowQuery.data, issues])
+
   return {
-    workflow: workflowQuery.data,
+    workflow: workflowWithDerivedStatus,
     issues,
     isLoading: workflowQuery.isLoading || (workflowQuery.data && issuesQuery.isLoading),
     error: workflowQuery.error || issuesQuery.error,
