@@ -363,14 +363,14 @@ describe('SpecsPage', () => {
     })
 
     it('should handle localStorage errors gracefully', async () => {
-      // Mock localStorage to throw an error
+      // Mock localStorage.getItem to throw an error for the sort key
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const originalGetItem = localStorage.getItem.bind(localStorage)
-      const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
+      const originalGetItem = localStorage.getItem
+      localStorage.getItem = vi.fn((key: string) => {
         if (key === 'sudocode:specs:sortOption') {
           throw new Error('localStorage error')
         }
-        return originalGetItem(key)
+        return originalGetItem.call(localStorage, key)
       })
 
       vi.mocked(specsApi.getAll).mockResolvedValue(sortableSpecs)
@@ -387,7 +387,7 @@ describe('SpecsPage', () => {
         expect.any(Error)
       )
 
-      getItemSpy.mockRestore()
+      localStorage.getItem = originalGetItem
       consoleErrorSpy.mockRestore()
     })
 

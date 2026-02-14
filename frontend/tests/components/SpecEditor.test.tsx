@@ -41,14 +41,13 @@ describe('SpecEditor', () => {
       },
     })
     vi.clearAllMocks()
-    // Mock localStorage to default to markdown mode for tests
-    Storage.prototype.getItem = vi.fn((key) => {
-      if (key === 'sudocode:specEditor:viewMode') {
-        return JSON.stringify('markdown')
-      }
-      return null
-    })
-    Storage.prototype.setItem = vi.fn()
+    // Set localStorage to markdown mode for tests so textarea is rendered
+    localStorage.setItem('sudocode:specEditor:viewMode', JSON.stringify('markdown'))
+    localStorage.setItem('sudocode:createSpec:mode', 'manual')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
   })
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
