@@ -259,6 +259,23 @@ async function runExecution(): Promise<void> {
     const voiceEnabled = isVoiceBroadcastEnabled(voiceConfig);
     const voiceNarrationSettings = getNarrationConfig(voiceConfig);
 
+    // 8.5. Inject working directory into sudocode-mcp args now that workDir is known
+    // This ensures MCP tools operate on the correct project, not the server's cwd
+    if (config.mcpServers?.["sudocode-mcp"]) {
+      const mcpConfig = config.mcpServers["sudocode-mcp"] as {
+        command: string;
+        args?: string[];
+      };
+      const existingArgs = mcpConfig.args || [];
+      // Only add -w if not already specified by user
+      if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
+        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        console.log(
+          `[Worker:${WORKER_ID}] Injected -w ${workDir} into sudocode-mcp args`
+        );
+      }
+    }
+
     // 9. Create executor using factory
     const wrapper = createExecutorForAgent(
       agentType,

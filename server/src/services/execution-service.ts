@@ -529,6 +529,23 @@ export class ExecutionService {
       .filter(Boolean)
       .join("\n");
 
+    // Inject working directory into sudocode-mcp args now that workDir is known
+    // This ensures MCP tools operate on the correct project, not the server's cwd
+    if (mergedConfig.mcpServers?.["sudocode-mcp"]) {
+      const mcpConfig = mergedConfig.mcpServers["sudocode-mcp"] as {
+        command: string;
+        args?: string[];
+      };
+      const existingArgs = mcpConfig.args || [];
+      // Only add -w if not already specified by user
+      if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
+        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        console.log(
+          `[ExecutionService] Injected -w ${workDir} into sudocode-mcp args`
+        );
+      }
+    }
+
     // Build execution task (prompt already resolved above)
     const task: ExecutionTask = {
       id: execution.id,
@@ -851,6 +868,23 @@ ${feedback}`;
     ]
       .filter(Boolean)
       .join("\n");
+
+    // Inject working directory into sudocode-mcp args now that workDir is known
+    // This ensures MCP tools operate on the correct project, not the server's cwd
+    if (parsedConfig.mcpServers?.["sudocode-mcp"]) {
+      const mcpConfig = parsedConfig.mcpServers["sudocode-mcp"] as {
+        command: string;
+        args?: string[];
+      };
+      const existingArgs = mcpConfig.args || [];
+      // Only add -w if not already specified by user
+      if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
+        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        console.log(
+          `[ExecutionService] Injected -w ${workDir} into sudocode-mcp args for follow-up`
+        );
+      }
+    }
 
     // Build execution task for follow-up (use resolved prompt for agent)
     // IMPORTANT: Inherit ALL config from parent execution
