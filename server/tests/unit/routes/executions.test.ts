@@ -14,6 +14,7 @@ vi.mock("../../../src/services/agent-registry.js", () => {
     "codex",
     "copilot",
     "cursor",
+    "opencode"
   ]);
 
   return {
@@ -131,11 +132,11 @@ describe("Executions API Routes - Agent Type Validation", () => {
       );
     });
 
-    it("should create adhoc execution without agentType (defaults to claude-code)", async () => {
+    it("should create adhoc execution without agentType (defaults to opencode)", async () => {
       const mockAdhocExecution = {
         id: "exec-adhoc-123",
         issue_id: null,
-        agent_type: "claude-code",
+        agent_type: "opencode",
         status: "running",
       } as Execution;
 
@@ -153,7 +154,7 @@ describe("Executions API Routes - Agent Type Validation", () => {
         null,
         {},
         "Run the tests",
-        undefined // No agentType provided, service will default to 'claude-code'
+        undefined // No agentType provided, service will default to 'opencode'
       );
     });
 
@@ -300,7 +301,7 @@ describe("Executions API Routes - Agent Type Validation", () => {
       );
     });
 
-    it("should create execution without agentType (defaults to claude-code)", async () => {
+    it("should create execution without agentType (defaults to opencode)", async () => {
       const response = await request(app)
         .post("/api/issues/i-abc/executions")
         .send({
@@ -313,7 +314,7 @@ describe("Executions API Routes - Agent Type Validation", () => {
         "i-abc",
         {},
         "Test prompt",
-        undefined // No agentType provided, service will default to 'claude-code'
+        undefined // No agentType provided, service will default to 'opencode'
       );
     });
 
@@ -426,7 +427,7 @@ describe("Executions API Routes - Agent Type Validation", () => {
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
-      // agentType is undefined, will default to 'claude-code' in service
+      // agentType is undefined, will default to 'opencode' in service
       expect(mockExecutionService.createExecution).toHaveBeenCalledWith(
         "i-abc",
         { mode: "local" },

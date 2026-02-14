@@ -239,7 +239,7 @@ describe.skipIf(SKIP_E2E)("Workflow MCP E2E", () => {
       config: {
         parallelism: "sequential",
         onFailure: "pause",
-        defaultAgentType: "claude-code",
+        defaultAgentType: "opencode",
         autonomyLevel: "human_in_the_loop",
       },
     });

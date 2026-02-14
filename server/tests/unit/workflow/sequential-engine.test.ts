@@ -87,7 +87,7 @@ function createTestWorkflow(overrides?: Partial<Workflow>): Workflow {
       maxConcurrency: 1,
       onFailure: "pause",
       autoCommitAfterStep: true,
-      defaultAgentType: "claude-code",
+      defaultAgentType: "opencode",
       autonomyLevel: "human_in_the_loop",
     },
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -546,7 +546,7 @@ describe("SequentialWorkflowEngine", () => {
           parentExecutionId: "exec-1", // Link to parent execution for chain tracking
         }),
         "Workflow resumed. Continue where you left off.", // Resume prompt
-        "claude-code"
+        "opencode"
       );
     });
 
@@ -628,7 +628,7 @@ describe("SequentialWorkflowEngine", () => {
           resume: undefined, // No session to resume
         }),
         expect.stringContaining("Task:"), // Full prompt, not resume prompt
-        "claude-code"
+        "opencode"
       );
     });
   });
@@ -1019,7 +1019,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 3,
           onFailure: "pause",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1079,7 +1079,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 2, // Only allow 2 at a time
           onFailure: "continue",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1136,7 +1136,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 3,
           onFailure: "continue", // Continue even if step fails
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1212,7 +1212,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 3,
           onFailure: "stop", // Stop on first failure
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1281,7 +1281,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 1,
           onFailure,
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1498,7 +1498,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 1,
           onFailure: "pause",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1585,7 +1585,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 1,
           onFailure: "pause",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1652,7 +1652,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 1,
           onFailure: "pause",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [
@@ -1720,7 +1720,7 @@ describe("SequentialWorkflowEngine", () => {
           maxConcurrency: 1,
           onFailure: "pause",
           autoCommitAfterStep: true,
-          defaultAgentType: "claude-code",
+          defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
         },
         steps: [

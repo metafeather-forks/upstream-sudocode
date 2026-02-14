@@ -156,7 +156,7 @@ function createTestWorkflow(overrides?: Partial<Workflow>): Workflow {
       maxConcurrency: 1,
       onFailure: "pause",
       autoCommitAfterStep: true,
-      defaultAgentType: "claude-code",
+      defaultAgentType: "opencode",
       autonomyLevel: "human_in_the_loop",
     },
     createdAt: "2024-01-01T00:00:00.000Z",

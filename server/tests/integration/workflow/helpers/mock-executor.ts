@@ -89,7 +89,7 @@ export class MockExecutionService extends EventEmitter {
     issueId: string | null,
     config: ExecutionConfig,
     prompt: string,
-    agentType: AgentType = "claude-code",
+    agentType: AgentType = "opencode",
     workflowContext?: WorkflowContext
   ): Promise<Execution> {
     const executionId = `exec-${uuidv4().substring(0, 8)}`;

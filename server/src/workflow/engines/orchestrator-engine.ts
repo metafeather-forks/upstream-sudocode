@@ -654,8 +654,8 @@ export class OrchestratorWorkflowEngine extends BaseWorkflowEngine {
     // Build agent config with MCP servers
     const agentConfig = this.buildOrchestratorConfig(workflow);
 
-    // Determine agent type (default to claude-code)
-    const agentType = workflow.config.orchestratorAgentType ?? "claude-code";
+    // Determine agent type (default to opencode)
+    const agentType = workflow.config.orchestratorAgentType ?? "opencode";
 
     // Log the full config being passed to createExecution
     // Orchestrator runs in the workflow's worktree so it can see step changes

@@ -439,8 +439,8 @@ const EXECUTION_WRITE_TOOLS: ToolDefinition[] = [
         },
         agent_type: {
           type: "string",
-          enum: ["claude-code", "codex", "copilot", "cursor"],
-          description: "Agent type to use (default: claude-code)",
+          enum: ["claude-code", "codex", "copilot", "cursor", "opencode"],
+          description: "Agent type to use (default: opencode)",
         },
         model: {
           type: "string",
@@ -469,8 +469,8 @@ const EXECUTION_WRITE_TOOLS: ToolDefinition[] = [
         },
         agent_type: {
           type: "string",
-          enum: ["claude-code", "codex", "copilot", "cursor"],
-          description: "Agent type to use (default: claude-code)",
+          enum: ["claude-code", "codex", "copilot", "cursor", "opencode"],
+          description: "Agent type to use (default: opencode)",
         },
         model: {
           type: "string",

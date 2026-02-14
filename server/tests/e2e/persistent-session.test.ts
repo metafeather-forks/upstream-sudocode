@@ -119,7 +119,7 @@ function createExecution(
   stmt.run(
     data.id,
     data.issue_id || null,
-    data.agent_type || "claude-code",
+    data.agent_type || "opencode",
     data.mode || "local",
     data.prompt || "Test prompt",
     data.status || "pending",

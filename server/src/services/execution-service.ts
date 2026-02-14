@@ -208,7 +208,7 @@ export class ExecutionService {
    * @param issueId - ID of issue to execute, or null for orchestrator executions
    * @param config - Execution configuration
    * @param prompt - Rendered prompt to execute
-   * @param agentType - Type of agent to use (defaults to 'claude-code')
+   * @param agentType - Type of agent to use (defaults to 'opencode')
    * @param workflowContext - Optional workflow context for workflow-spawned executions
    * @returns Created execution record
    */
@@ -216,7 +216,7 @@ export class ExecutionService {
     issueId: string | null,
     config: ExecutionConfig,
     prompt: string,
-    agentType: AgentType = "claude-code",
+    agentType: AgentType = "opencode",
     workflowContext?: WorkflowContext
   ): Promise<Execution> {
     // 1. Validate
@@ -700,8 +700,8 @@ ${feedback}`;
     }
 
     // 3. Create new execution record that references previous execution
-    // Default to 'claude-code' if agent_type is null (for backwards compatibility)
-    const agentType = (prevExecution.agent_type || "claude-code") as AgentType;
+    // Default to 'opencode' if agent_type is null (for backwards compatibility)
+    const agentType = (prevExecution.agent_type || "opencode") as AgentType;
 
     // Determine working directory: worktree path if available, otherwise repo path (local mode)
     const workDir = hasWorktree ? prevExecution.worktree_path! : this.repoPath;
@@ -1187,7 +1187,7 @@ ${feedback}`;
     const newExecution = createExecution(this.db, {
       id: newExecutionId,
       issue_id: sourceExecution.issue_id, // Can be null for adhoc executions
-      agent_type: (sourceExecution.agent_type || "claude-code") as AgentType,
+      agent_type: (sourceExecution.agent_type || "opencode") as AgentType,
       mode: sourceExecution.mode || "worktree",
       prompt: `[Forked from ${executionId}] ${sourceExecution.prompt || ""}`,
       config: sourceExecution.config ?? undefined,

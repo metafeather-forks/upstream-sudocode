@@ -1374,7 +1374,7 @@ export function createWorkflowsRouter(): Router {
 
       // Build execution config
       const agentTypeToUse =
-        agent_type || workflow.config.defaultAgentType || "claude-code";
+        agent_type || workflow.config.defaultAgentType || "opencode";
       const executionConfig = {
         mode: "worktree" as const,
         model: model || workflow.config.orchestratorModel,

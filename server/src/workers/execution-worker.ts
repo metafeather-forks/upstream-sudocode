@@ -251,8 +251,8 @@ async function runExecution(): Promise<void> {
     const lifecycleService = new ExecutionLifecycleService(db, REPO_PATH!);
     const logsStore = new ExecutionLogsStore(db);
 
-    // 7. Determine agent type (default to claude-code for backwards compatibility)
-    const agentType = config.agentType || "claude-code";
+    // 7. Determine agent type from execution record (default to opencode for backwards compatibility)
+    const agentType = execution.agent_type || "opencode";
 
     // 8. Read voice config to determine if voice narration broadcasts are enabled
     const voiceConfig = readVoiceConfig(REPO_PATH!);

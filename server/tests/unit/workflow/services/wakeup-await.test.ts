@@ -89,7 +89,7 @@ function insertTestWorkflow(
       parallelism: "sequential",
       onFailure: "pause",
       autoCommitAfterStep: true,
-      defaultAgentType: "claude-code",
+      defaultAgentType: "opencode",
       autonomyLevel: "human_in_the_loop",
     }),
     "2025-01-01T00:00:00.000Z",

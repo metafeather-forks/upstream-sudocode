@@ -213,7 +213,7 @@ export function createExecutionsRouter(): Router {
    * Request body:
    * - prompt: string (required) - The prompt for the execution
    * - config?: ExecutionConfig - Execution configuration
-   * - agentType?: string - Agent type (defaults to 'claude-code')
+   * - agentType?: string - Agent type (defaults to 'opencode')
    */
   router.post("/executions", async (req: Request, res: Response) => {
     try {
@@ -250,7 +250,7 @@ export function createExecutionsRouter(): Router {
         null, // No issue for adhoc executions
         config || {},
         prompt,
-        agentType // Optional, defaults to 'claude-code' in service
+        agentType // Optional, defaults to 'opencode' in service
       );
 
       res.status(201).json({
@@ -350,7 +350,7 @@ export function createExecutionsRouter(): Router {
           issueId,
           config || {},
           prompt,
-          agentType // Optional, defaults to 'claude-code' in service
+          agentType // Optional, defaults to 'opencode' in service
         );
 
         res.status(201).json({

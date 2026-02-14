@@ -231,7 +231,7 @@ describe("OrchestratorWorkflowEngine", () => {
 
       expect(workflow.config.autonomyLevel).toBe("full_auto");
       expect(workflow.config.orchestratorModel).toBe("claude-opus-4");
-      expect(workflow.config.defaultAgentType).toBe("claude-code"); // Default
+      expect(workflow.config.defaultAgentType).toBe("opencode"); // Default
     });
   });
 
@@ -255,7 +255,7 @@ describe("OrchestratorWorkflowEngine", () => {
           }),
         }),
         expect.stringContaining("Workflow Orchestration"),
-        "claude-code"
+        "opencode"
       );
     });
 

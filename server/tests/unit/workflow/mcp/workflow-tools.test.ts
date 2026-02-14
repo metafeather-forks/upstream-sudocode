@@ -32,7 +32,7 @@ describe("Workflow MCP Tools", () => {
           config: {
             parallelism: "sequential",
             onFailure: "pause",
-            defaultAgentType: "claude-code",
+            defaultAgentType: "opencode",
           },
         },
         steps: [

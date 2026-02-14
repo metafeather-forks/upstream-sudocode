@@ -103,7 +103,7 @@ export const DEFAULT_WORKFLOW_CONFIG: Readonly<WorkflowConfig> = {
   maxConcurrency: 1,
   onFailure: "pause",
   autoCommitAfterStep: true,
-  defaultAgentType: "claude-code",
+  defaultAgentType: "opencode",
 
   // Orchestrator engine options
   orchestratorAgentType: undefined,

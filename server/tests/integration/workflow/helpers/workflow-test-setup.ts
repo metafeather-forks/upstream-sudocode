@@ -223,7 +223,7 @@ export function createTestWorkflow(
     parallelism: "sequential",
     onFailure: "pause",
     autoCommitAfterStep: true,
-    defaultAgentType: "claude-code",
+    defaultAgentType: "opencode",
     autonomyLevel: "human_in_the_loop",
     ...data.config,
   };
@@ -360,7 +360,7 @@ export function createExecution(
   stmt.run(
     data.id,
     data.issueId ?? null,
-    data.agentType || "claude-code",
+    data.agentType || "opencode",
     data.mode || "worktree",
     data.prompt || "Test prompt",
     data.status || "pending",

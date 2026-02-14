@@ -77,7 +77,7 @@ describe("Workflow Escalation API", () => {
         engineType: "sequential",
         parallelism: "sequential",
         onFailure: "pause",
-        defaultAgentType: "claude-code",
+        defaultAgentType: "opencode",
         autonomyLevel: "human_in_the_loop",
       }),
     };

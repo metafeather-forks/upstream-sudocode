@@ -342,7 +342,7 @@ describe("ExecutionService", () => {
       // Verify execution was created
       expect(execution.id, "Should have execution ID").toBeTruthy();
       expect(execution.issue_id).toBe(testIssueId);
-      expect(execution.agent_type).toBe("claude-code");
+      expect(execution.agent_type).toBe("opencode");
       expect(execution.status).toBe("running");
       expect(execution.worktree_path, "Should have worktree path").toBeTruthy();
       expect(execution.branch_name, "Should have branch name").toBeTruthy();
@@ -475,16 +475,16 @@ describe("ExecutionService", () => {
       ).rejects.toThrow(/Issue ISSUE-999 not found/);
     });
 
-    it("should default to claude-code agent when agentType not specified", async () => {
+    it("should default to opencode agent when agentType not specified", async () => {
       const issueContent = "Add OAuth2 authentication with JWT tokens";
       const execution = await service.createExecution(
         testIssueId,
         { mode: "worktree" as const },
         issueContent
-        // agentType not specified, should default to 'claude-code'
+        // agentType not specified, should default to 'opencode'
       );
 
-      expect(execution.agent_type).toBe("claude-code");
+      expect(execution.agent_type).toBe("opencode");
     });
 
     it("should create execution with specified agent type", async () => {

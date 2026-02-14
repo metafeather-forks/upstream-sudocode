@@ -478,7 +478,7 @@ describe("Multi-Agent Support - Phase 1 Integration", () => {
   });
 
   describe("ExecutionService Multi-Agent Integration", () => {
-    it("should create execution with default claude-code agent", async () => {
+    it("should create execution with default opencode agent", async () => {
       // Create without specifying agentType
       const execution = await executionService.createExecution(
         testIssueId,
@@ -487,7 +487,7 @@ describe("Multi-Agent Support - Phase 1 Integration", () => {
       );
 
       expect(execution).toBeDefined();
-      expect(execution.agent_type).toBe("claude-code");
+      expect(execution.agent_type).toBe("opencode");
       expect(execution.issue_id).toBe(testIssueId);
     });
 
@@ -570,13 +570,13 @@ describe("Multi-Agent Support - Phase 1 Integration", () => {
         execution.id
       );
 
-      // createFollowUp should handle NULL by defaulting to claude-code
+      // createFollowUp should handle NULL by defaulting to opencode
       const followUp = await executionService.createFollowUp(
         execution.id,
         "Test follow-up"
       );
 
-      expect(followUp.agent_type).toBe("claude-code");
+      expect(followUp.agent_type).toBe("opencode");
     });
   });
 
@@ -652,7 +652,7 @@ describe("Multi-Agent Support - Phase 1 Integration", () => {
       expect(execution).toBeDefined();
       expect(execution.id).toBeTruthy();
       expect(execution.issue_id).toBe(testIssueId);
-      expect(execution.agent_type).toBe("claude-code");
+      expect(execution.agent_type).toBe("opencode");
       expect(execution.status).toBe("running");
       expect(execution.worktree_path).toBeTruthy();
       expect(execution.branch_name).toBeTruthy();
@@ -674,7 +674,7 @@ describe("Multi-Agent Support - Phase 1 Integration", () => {
       const createdExec = executions.find((e) => e.id === newExecution.id);
       expect(createdExec).toBeDefined();
       expect(createdExec!.agent_type).toBeTruthy();
-      expect(createdExec!.agent_type).toBe("claude-code");
+      expect(createdExec!.agent_type).toBe("opencode");
     });
 
     // prepareExecution was removed - prompts are now passed directly to createExecution

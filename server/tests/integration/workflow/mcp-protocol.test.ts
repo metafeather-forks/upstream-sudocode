@@ -118,7 +118,7 @@ describe("Workflow MCP Protocol", () => {
       config: {
         parallelism: "sequential",
         onFailure: "pause",
-        defaultAgentType: "claude-code",
+        defaultAgentType: "opencode",
         autonomyLevel: "human_in_the_loop",
       },
     });
