@@ -95,7 +95,36 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// Mock localStorage with a complete implementation
+// This prevents issues when other test files override localStorage
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value.toString()
+    },
+    removeItem: (key: string) => {
+      delete store[key]
+    },
+    clear: () => {
+      store = {}
+    },
+    get length() {
+      return Object.keys(store).length
+    },
+    key: (index: number) => Object.keys(store)[index] || null,
+  }
+})()
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+})
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()
+  localStorageMock.clear()
 })
