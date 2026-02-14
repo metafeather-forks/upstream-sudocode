@@ -208,9 +208,13 @@ describe('MCP Auto-Injection Integration Tests', () => {
       const capturedConfig = await getCapturedExecutorConfig();
 
       // Verify the MCP server config would enable sudocode tools
-      expect(capturedConfig.mcpServers['sudocode-mcp']).toEqual({
+      // Uses toMatchObject since service injects -w workDir into args
+      expect(capturedConfig.mcpServers['sudocode-mcp']).toMatchObject({
         command: 'sudocode-mcp',
       });
+      // Verify -w was injected
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args).toBeDefined();
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args[0]).toBe('-w');
 
       // This config structure is what claude-code needs to connect to sudocode MCP tools
       // The actual connection happens in the agent adapter, but we've verified
@@ -255,9 +259,13 @@ describe('MCP Auto-Injection Integration Tests', () => {
         command: 'custom-mcp-server',
         args: ['--verbose'],
       });
-      expect(capturedConfig.mcpServers['sudocode-mcp']).toEqual({
+      // Uses toMatchObject since service injects -w workDir into args
+      expect(capturedConfig.mcpServers['sudocode-mcp']).toMatchObject({
         command: 'sudocode-mcp',
       });
+      // Verify -w was injected
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args).toBeDefined();
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args[0]).toBe('-w');
     });
   });
 
@@ -496,11 +504,11 @@ describe('MCP Auto-Injection Integration Tests', () => {
       // Get the config that was passed to the executor
       const capturedConfig = await getCapturedExecutorConfig();
 
-      // Verify user's config is preserved (not overwritten by auto-injection)
-      expect(capturedConfig.mcpServers['sudocode-mcp']).toEqual({
-        command: 'sudocode-mcp',
-        args: ['--custom-flag'],
-      });
+      // Verify user's config is preserved (with -w workDir prepended by service)
+      expect(capturedConfig.mcpServers['sudocode-mcp'].command).toBe('sudocode-mcp');
+      // -w workDir is prepended, followed by user's custom flag
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args[0]).toBe('-w');
+      expect(capturedConfig.mcpServers['sudocode-mcp'].args).toContain('--custom-flag');
 
       // Verify only one sudocode-mcp entry exists
       const mcpKeys = Object.keys(capturedConfig.mcpServers).filter((k) =>
