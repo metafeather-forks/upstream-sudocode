@@ -79,7 +79,7 @@ describe('ChatWidgetContext', () => {
     expect(result.current.mode).toBe('floating')
     expect(result.current.selectedExecutionId).toBeNull()
     expect(result.current.selectedExecution).toBeNull()
-    expect(result.current.agentType).toBe('claude-code')
+    expect(result.current.agentType).toBe('copilot')
     expect(result.current.executionConfig).toEqual({ mode: 'local' })
   })
 

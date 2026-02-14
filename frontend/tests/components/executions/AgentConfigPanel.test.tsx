@@ -61,6 +61,16 @@ describe('AgentConfigPanel', () => {
 
   const mockAgents: AgentInfo[] = [
     {
+      type: 'copilot',
+      displayName: 'Copilot',
+      supportedModes: ['structured', 'interactive', 'hybrid'],
+      supportsStreaming: true,
+      supportsStructuredOutput: true,
+      implemented: true,
+      available: true,
+      executablePath: '/usr/local/bin/copilot',
+    },
+    {
       type: 'claude-code',
       displayName: 'Claude',
       supportedModes: ['structured', 'interactive', 'hybrid'],
@@ -135,7 +145,7 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
     })
 
@@ -145,7 +155,7 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
 
       // Find all combobox triggers and click the agent selector (first one)
@@ -153,8 +163,10 @@ describe('AgentConfigPanel', () => {
       await user.click(triggers[0])
 
       await waitFor(() => {
+        // Should show Copilot (implemented and selected) - appears in trigger and dropdown
+        expect(screen.getAllByText('Copilot').length).toBeGreaterThan(1)
         // Should show Claude (implemented)
-        expect(screen.getAllByText('Claude').length).toBeGreaterThan(1)
+        expect(screen.getByText('Claude')).toBeInTheDocument()
         // Should NOT show Codex (unimplemented)
         expect(screen.queryByText('Codex')).not.toBeInTheDocument()
       })
@@ -166,14 +178,14 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
 
       const triggers = screen.getAllByRole('combobox')
       await user.click(triggers[0])
 
       await waitFor(() => {
-        // Only Claude should be in the options (it's the only implemented agent in mockAgents)
+        // Both Copilot and Claude should be in the options (both are implemented)
         const options = screen.getAllByRole('option')
         // Filter to agent selector options (exclude mode and branch options)
         const agentOptions = options.filter(
@@ -183,8 +195,9 @@ describe('AgentConfigPanel', () => {
             opt.textContent?.includes('Copilot') ||
             opt.textContent?.includes('Cursor')
         )
-        expect(agentOptions.length).toBe(1)
-        expect(agentOptions[0].textContent).toBe('Claude')
+        expect(agentOptions.length).toBe(2)
+        // Codex should NOT be in the options (unimplemented)
+        expect(options.find((opt) => opt.textContent?.includes('Codex'))).toBeUndefined()
       })
     })
 
@@ -200,7 +213,7 @@ describe('AgentConfigPanel', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
 
       const triggers = screen.getAllByRole('combobox')
@@ -431,7 +444,7 @@ describe('AgentConfigPanel', () => {
           cleanupMode: 'manual',
         }),
         'Test prompt',
-        'claude-code',
+        'copilot', // Default agent type
         false
       )
     })
@@ -456,7 +469,7 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
 
       // Change agent selection
@@ -644,7 +657,7 @@ describe('AgentConfigPanel', () => {
       expect(savedConfig).toBeTruthy()
 
       const savedAgentType = localStorage.getItem('sudocode:lastAgentType')
-      expect(savedAgentType).toBe('claude-code')
+      expect(savedAgentType).toBe('copilot') // Default agent type
     })
 
     it('should load config from localStorage when no previous execution', async () => {
@@ -937,8 +950,14 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
+
+      // Select claude-code agent (skip permissions is only for claude-code)
+      const triggers = screen.getAllByRole('combobox')
+      await user.click(triggers[0])
+      const claudeOption = await screen.findByRole('option', { name: /Claude/ })
+      await user.click(claudeOption)
 
       // Open settings dialog to check the value
       const buttons = screen.getAllByRole('button')
@@ -961,8 +980,14 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
+
+      // Select claude-code agent (skip permissions is only for claude-code)
+      const triggers = screen.getAllByRole('combobox')
+      await user.click(triggers[0])
+      const claudeOption = await screen.findByRole('option', { name: /Claude/ })
+      await user.click(claudeOption)
 
       // Open settings dialog
       const buttons = screen.getAllByRole('button')
@@ -1005,6 +1030,7 @@ describe('AgentConfigPanel', () => {
       )
 
       await waitFor(() => {
+        // lastExecution uses claude-code
         expect(screen.getByText('Claude')).toBeInTheDocument()
       })
 
@@ -1034,8 +1060,14 @@ describe('AgentConfigPanel', () => {
       renderWithProviders(<AgentConfigPanel issueId="i-test1" onStart={mockOnStart} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Claude')).toBeInTheDocument()
+        expect(screen.getByText('Copilot')).toBeInTheDocument()
       })
+
+      // Select claude-code agent (skip permissions is only for claude-code)
+      const triggers = screen.getAllByRole('combobox')
+      await user.click(triggers[0])
+      const claudeOption = await screen.findByRole('option', { name: /Claude/ })
+      await user.click(claudeOption)
 
       // Open settings dialog
       const buttons = screen.getAllByRole('button')
@@ -1456,7 +1488,7 @@ describe('AgentConfigPanel', () => {
       )
 
       await waitFor(() => {
-        // Should show inherited agent type
+        // Should show inherited agent type (lastExecution uses claude-code)
         expect(screen.getByText('Claude')).toBeInTheDocument()
         // Should show inherited mode
         expect(screen.getByText('Run in worktree')).toBeInTheDocument()
