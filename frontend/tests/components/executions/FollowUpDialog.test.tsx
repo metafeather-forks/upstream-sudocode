@@ -324,7 +324,7 @@ describe('FollowUpDialog', () => {
     expect(screen.getByText('Network error')).toBeInTheDocument()
   })
 
-  it('should submit on Enter key press', async () => {
+  it('should submit on Cmd+Enter key press', async () => {
     const user = userEvent.setup()
     mockOnSubmit.mockResolvedValue(undefined)
 
@@ -334,7 +334,7 @@ describe('FollowUpDialog', () => {
 
     const textarea = screen.getByLabelText('Feedback')
     await user.type(textarea, 'Add tests')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
 
     await waitFor(() => {
       expect(mockOnSubmit).toHaveBeenCalledWith('Add tests')
@@ -357,7 +357,7 @@ describe('FollowUpDialog', () => {
     expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
-  it('should not submit on Enter when feedback is empty', async () => {
+  it('should not submit on plain Enter when feedback is empty', async () => {
     const user = userEvent.setup()
     mockOnSubmit.mockResolvedValue(undefined)
 
@@ -367,13 +367,13 @@ describe('FollowUpDialog', () => {
 
     const textarea = screen.getByLabelText('Feedback')
     await user.click(textarea)
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
 
     // Should not submit when empty
     expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
-  it('should not submit on Enter when feedback is whitespace only', async () => {
+  it('should not submit on Cmd+Enter when feedback is whitespace only', async () => {
     const user = userEvent.setup()
     mockOnSubmit.mockResolvedValue(undefined)
 
@@ -383,13 +383,13 @@ describe('FollowUpDialog', () => {
 
     const textarea = screen.getByLabelText('Feedback')
     await user.type(textarea, '   ')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
 
     // Should not submit when only whitespace
     expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
-  it('should not submit on Enter while already submitting', async () => {
+  it('should not submit on Cmd+Enter while already submitting', async () => {
     const user = userEvent.setup()
     let resolveSubmit: () => void
     mockOnSubmit.mockReturnValue(
@@ -404,15 +404,15 @@ describe('FollowUpDialog', () => {
 
     const textarea = screen.getByLabelText('Feedback')
     await user.type(textarea, 'Add tests')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
 
     // Wait for submission to start
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Submitting\.\.\./ })).toBeInTheDocument()
     })
 
-    // Try pressing Enter again - should not call onSubmit twice
-    await user.keyboard('{Enter}')
+    // Try pressing Cmd+Enter again - should not call onSubmit twice
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
     expect(mockOnSubmit).toHaveBeenCalledTimes(1)
 
     // Resolve submission

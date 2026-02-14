@@ -95,28 +95,28 @@ describe('OrchestratorGuidancePanel', () => {
     })
   })
 
-  it('should submit on Enter key press', async () => {
+  it('should submit on Cmd+Enter key press', async () => {
     const user = userEvent.setup()
 
     renderWithProviders(<OrchestratorGuidancePanel {...baseProps} />)
 
     const textarea = screen.getByPlaceholderText(/Type your guidance/)
     await user.type(textarea, 'Check the API endpoints')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
 
     expect(executionsApi.createFollowUp).toHaveBeenCalledWith('exec-456', {
       feedback: 'Check the API endpoints',
     })
   })
 
-  it('should not submit on Shift+Enter (allows newline)', async () => {
+  it('should not submit on plain Enter (allows newline)', async () => {
     const user = userEvent.setup()
 
     renderWithProviders(<OrchestratorGuidancePanel {...baseProps} />)
 
     const textarea = screen.getByPlaceholderText(/Type your guidance/)
     await user.type(textarea, 'Line 1')
-    await user.keyboard('{Shift>}{Enter}{/Shift}')
+    await user.keyboard('{Enter}')
     await user.type(textarea, 'Line 2')
 
     // Should NOT have called the API yet
@@ -233,7 +233,7 @@ describe('OrchestratorGuidancePanel', () => {
   it('should show hint text about keyboard shortcuts', () => {
     renderWithProviders(<OrchestratorGuidancePanel {...baseProps} />)
 
-    expect(screen.getByText(/Press Enter to send, Shift\+Enter for new line/)).toBeInTheDocument()
+    expect(screen.getByText(/Press ⌘\+Enter to send/)).toBeInTheDocument()
   })
 
   it('should apply custom className', () => {
