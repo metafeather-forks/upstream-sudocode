@@ -782,6 +782,24 @@ export class WorktreeSyncService {
   }
 
   /**
+   * Run git add with force flag for .sudocode files
+   *
+   * Uses -f flag when adding .sudocode files to bypass global gitignore
+   * patterns that may ignore the .sudocode directory.
+   *
+   * @param filePath - File path to add
+   * @param cwd - Working directory for git command
+   */
+  private _gitAdd(filePath: string, cwd: string): void {
+    // Use -f for .sudocode files to bypass potential global gitignore patterns
+    const forceFlag = filePath.includes('.sudocode') ? '-f ' : '';
+    execSync(`git add ${forceFlag}${this._escapeShellArg(filePath)}`, {
+      cwd,
+      stdio: 'pipe',
+    });
+  }
+
+  /**
    * Resolve JSONL conflicts using three-way merge
    *
    * Used in squash sync to auto-resolve JSONL conflicts
@@ -831,10 +849,7 @@ export class WorktreeSyncService {
         await writeJSONL(resolvedPath, merged);
 
         // Stage the resolved file
-        execSync(`git add ${this._escapeShellArg(conflict.filePath)}`, {
-          cwd: this.repoPath,
-          stdio: "pipe",
-        });
+        this._gitAdd(conflict.filePath, this.repoPath);
       } catch (error: any) {
         throw new WorktreeSyncError(
           `Failed to resolve JSONL conflict in ${conflict.filePath}: ${error.message}`,
@@ -901,10 +916,7 @@ export class WorktreeSyncService {
     try {
       // Stage all uncommitted JSONL files
       for (const file of uncommittedFiles) {
-        execSync(`git add ${this._escapeShellArg(file)}`, {
-          cwd: worktreePath,
-          stdio: "pipe",
-        });
+        this._gitAdd(file, worktreePath);
       }
 
       // Create commit with descriptive message
@@ -1272,10 +1284,7 @@ export class WorktreeSyncService {
       // Stage the file ONLY if it doesn't have conflicts
       // Files with conflict markers should remain unstaged so VS Code can detect them
       if (!hasConflicts) {
-        execSync(`git add ${this._escapeShellArg(filePath)}`, {
-          cwd: this.repoPath,
-          stdio: "pipe",
-        });
+        this._gitAdd(filePath, this.repoPath);
       }
 
       filesCopied++;
@@ -1399,10 +1408,7 @@ export class WorktreeSyncService {
         await writeJSONL(filePath, resolved);
 
         // Stage the resolved file
-        execSync(`git add ${this._escapeShellArg(relativePath)}`, {
-          cwd: this.repoPath,
-          stdio: "pipe",
-        });
+        this._gitAdd(relativePath, this.repoPath);
 
         return;
       }
@@ -1453,10 +1459,7 @@ export class WorktreeSyncService {
     await writeJSONL(filePath, resolved);
 
     // Stage the resolved file
-    execSync(`git add ${this._escapeShellArg(relativePath)}`, {
-      cwd: this.repoPath,
-      stdio: "pipe",
-    });
+    this._gitAdd(relativePath, this.repoPath);
   }
 
   /**
