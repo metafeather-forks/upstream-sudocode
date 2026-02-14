@@ -200,22 +200,16 @@ describe.skipIf(SKIP_E2E)("Sequential Workflow E2E", () => {
         );
         await testServer.api.startWorkflow(workflow.id);
 
-        // Wait for first step to start
+        // Wait for first step to start AND have an executionId
         await waitFor(() => {
           const w = getWorkflow(testServer.db, workflow.id);
-          return w?.steps[0].status === "running";
+          return w?.steps[0].status === "running" && w?.steps[0].executionId;
         }, 5000);
 
-        // Pause the workflow
+        // Pause the workflow - this cancels the running execution
         await testServer.api.pauseWorkflow(workflow.id);
 
-        // Complete the running execution
-        const mockExecutor = testServer.executionService as MockExecutionService;
-        const step1ExecId = getWorkflow(testServer.db, workflow.id)!.steps[0]
-          .executionId!;
-        mockExecutor.getExecutionControl(step1ExecId)!.complete("Done");
-
-        // Verify workflow is paused
+        // Verify workflow is paused (execution was cancelled during pause)
         await waitFor(() => {
           const w = getWorkflow(testServer.db, workflow.id);
           return w?.status === "paused";
@@ -224,13 +218,31 @@ describe.skipIf(SKIP_E2E)("Sequential Workflow E2E", () => {
         const paused = getWorkflow(testServer.db, workflow.id)!;
         expect(paused.status).toBe("paused");
 
+        // Small delay to ensure the old execution loop has fully exited
+        // This avoids a race condition where resume sets isPaused=false before
+        // the old loop checks it, causing it to handle the cancelled execution as a failure
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
         // Resume the workflow
         await testServer.api.resumeWorkflow(workflow.id);
+
+        // Wait for step 1 to start running again (new execution after resume)
+        const mockExecutor = testServer.executionService as MockExecutionService;
+        await waitFor(() => {
+          const w = getWorkflow(testServer.db, workflow.id);
+          // Step 1 should be running with a new executionId
+          return w?.steps[0].status === "running" && w?.steps[0].executionId;
+        }, 5000);
+
+        // Complete step 1
+        const step1ExecId = getWorkflow(testServer.db, workflow.id)!.steps[0]
+          .executionId!;
+        mockExecutor.getExecutionControl(step1ExecId)!.complete("Done");
 
         // Wait for step 2 to start running
         await waitFor(() => {
           const w = getWorkflow(testServer.db, workflow.id);
-          return w?.steps[1].status === "running";
+          return w?.steps[1].status === "running" && w?.steps[1].executionId;
         }, 5000);
 
         // Complete step 2

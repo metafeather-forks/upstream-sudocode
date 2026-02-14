@@ -343,15 +343,18 @@ export function createExecution(
     status?: string;
     workflowExecutionId?: string;
     branchName?: string;
+    sessionId?: string;
   }
 ): any {
   const branchName = data.branchName || `sudocode/exec-${data.id}`;
+  // Generate a session_id if not provided (needed for orchestrator resume functionality)
+  const sessionId = data.sessionId || `session-${data.id}`;
 
   const stmt = db.prepare(`
     INSERT INTO executions (
       id, issue_id, agent_type, mode, prompt, status,
-      workflow_execution_id, target_branch, branch_name, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      workflow_execution_id, target_branch, branch_name, session_id, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `);
 
   stmt.run(
@@ -363,7 +366,8 @@ export function createExecution(
     data.status || "pending",
     data.workflowExecutionId || null,
     "main",
-    branchName
+    branchName,
+    sessionId
   );
 
   return db.prepare("SELECT * FROM executions WHERE id = ?").get(data.id);

@@ -93,6 +93,8 @@ export class MockExecutionService extends EventEmitter {
     workflowContext?: WorkflowContext
   ): Promise<Execution> {
     const executionId = `exec-${uuidv4().substring(0, 8)}`;
+    // Generate a mock session_id (needed for orchestrator resume functionality)
+    const sessionId = `session-${uuidv4().substring(0, 8)}`;
 
     // Create execution in database
     const execution = dbCreateExecution(this.db, {
@@ -103,6 +105,7 @@ export class MockExecutionService extends EventEmitter {
       prompt,
       status: "running",
       workflowExecutionId: workflowContext?.workflowId,
+      sessionId,
     });
 
     // Create control handle
