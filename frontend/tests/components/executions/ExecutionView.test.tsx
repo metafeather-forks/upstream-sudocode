@@ -26,6 +26,9 @@ vi.mock('@/lib/api', () => ({
   agentsApi: {
     getAll: vi.fn(),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 vi.mock('@/components/executions/ExecutionMonitor', () => ({

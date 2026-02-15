@@ -59,6 +59,9 @@ vi.mock('@/lib/api', () => ({
       },
     ]),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 // Mock WebSocket - must mock before importing WebSocketProvider in test-utils

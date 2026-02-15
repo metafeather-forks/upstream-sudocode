@@ -19,6 +19,7 @@ vi.mock('@/lib/api', () => ({
   projectsApi: {
     getOpen: vi.fn(),
     open: vi.fn(),
+    setCurrent: vi.fn().mockResolvedValue({}),
   },
   setCurrentProjectId: vi.fn(),
 }))

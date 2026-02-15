@@ -32,6 +32,9 @@ vi.mock('@/lib/api', () => ({
       path: '/test/path',
     }),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 // Mock WebSocket

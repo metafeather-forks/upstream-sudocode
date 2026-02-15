@@ -13,6 +13,9 @@ vi.mock('@/lib/api', () => ({
   executionsApi: {
     list: vi.fn(),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 // Mock react-router-dom

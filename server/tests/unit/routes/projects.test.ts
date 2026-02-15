@@ -80,7 +80,8 @@ describe("Projects API Routes", () => {
       const response = await request(app).get("/api/projects/open");
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ success: true, data: [] });
+      expect(response.body).toMatchObject({ success: true, data: [] });
+      expect(response.body).toHaveProperty("currentProjectId");
     });
 
     it("should return all open projects with context", async () => {

@@ -42,22 +42,35 @@ export function createProjectsRouter(
 
   /**
    * GET /api/projects/open
-   * Get all currently open projects
+   * Get all currently open projects, with currentProjectId indicating the UI's selection
    */
   router.get("/open", async (_req: Request, res: Response) => {
     try {
       const openProjects = projectManager.getAllOpenProjects();
+      const currentProjectId = registry.getCurrentProjectId();
       const projectInfos = openProjects.map((ctx) => {
         const projectInfo = registry.getProject(ctx.id);
         return {
           ...projectInfo,
           ...ctx.getSummary(),
+          isCurrent: ctx.id === currentProjectId,
         };
+      });
+
+      // Sort: current project first, then by openedAt descending
+      projectInfos.sort((a, b) => {
+        if (a.isCurrent && !b.isCurrent) return -1;
+        if (!a.isCurrent && b.isCurrent) return 1;
+        // Fall back to openedAt for non-current projects
+        const aTime = a?.openedAt ? new Date(a.openedAt).getTime() : 0;
+        const bTime = b?.openedAt ? new Date(b.openedAt).getTime() : 0;
+        return bTime - aTime;
       });
 
       res.json({
         success: true,
         data: projectInfos,
+        currentProjectId,
       });
     } catch (error: any) {
       console.error("Error fetching open projects:", error);
@@ -437,6 +450,65 @@ export function createProjectsRouter(
         data: null,
         error_data: error.message,
         message: "Failed to update project",
+      });
+    }
+  });
+
+  /**
+   * POST /api/projects/current
+   * Set the UI's current project ID.
+   * This is separate from opening a project - it just tracks which project
+   * the UI considers "current" for sorting purposes in /api/projects/open.
+   * MCP servers can open projects without affecting this selection.
+   *
+   * Body: { projectId: string | null }
+   * Response: { currentProjectId: string | null }
+   */
+  router.post("/current", async (req: Request, res: Response) => {
+    try {
+      const { projectId } = req.body;
+
+      registry.setCurrentProjectId(projectId || null);
+      await registry.save();
+
+      return res.json({
+        success: true,
+        data: {
+          currentProjectId: registry.getCurrentProjectId(),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error setting current project:", error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error_data: error.message,
+        message: "Failed to set current project",
+      });
+    }
+  });
+
+  /**
+   * GET /api/projects/current
+   * Get the UI's current project ID
+   *
+   * Response: { currentProjectId: string | null }
+   */
+  router.get("/current", async (_req: Request, res: Response) => {
+    try {
+      return res.json({
+        success: true,
+        data: {
+          currentProjectId: registry.getCurrentProjectId(),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error getting current project:", error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error_data: error.message,
+        message: "Failed to get current project",
       });
     }
   });

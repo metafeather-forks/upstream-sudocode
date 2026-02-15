@@ -99,7 +99,7 @@ export function ProjectProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Persist to localStorage and update API client whenever currentProjectId changes
+  // Persist to localStorage, update API client, and sync to server whenever currentProjectId changes
   useEffect(() => {
     try {
       if (currentProjectId) {
@@ -113,6 +113,11 @@ export function ProjectProvider({
 
     // Update API client to inject X-Project-ID header
     setApiProjectId(currentProjectId)
+
+    // Sync to server so MCP can query the UI's current project
+    projectsApi.setCurrent(currentProjectId).catch((err) => {
+      console.error('Failed to sync current project to server:', err)
+    })
   }, [currentProjectId])
 
   const setCurrentProjectId = (projectId: string | null) => {

@@ -13,12 +13,18 @@ import { SudocodeClientConfig, SudocodeError } from "./types.js";
 
 export class SudocodeClient {
   private workingDir: string;
+  private workDirExplicit: boolean;
   private cliPath: string;
   private cliArgs: string[];
   private dbPath?: string;
+  private serverUrl?: string;
   private versionChecked = false;
 
   constructor(config?: SudocodeClientConfig) {
+    // Track if workDir was explicitly provided (via -w/--working-dir flag)
+    // If explicit, we respect it and don't dynamically lookup from server
+    this.workDirExplicit = !!config?.workingDir;
+
     // Get working directory and expand variables if needed
     let workingDir =
       config?.workingDir || process.env.SUDOCODE_WORKING_DIR || process.cwd();
@@ -30,6 +36,7 @@ export class SudocodeClient {
 
     this.workingDir = workingDir;
     this.dbPath = config?.dbPath || process.env.SUDOCODE_DB;
+    this.serverUrl = config?.serverUrl || process.env.SUDOCODE_SERVER_URL;
 
     // Auto-discover CLI path from node_modules or use configured/env path
     const cliInfo = this.findCliPath();
@@ -89,6 +96,79 @@ export class SudocodeClient {
   }
 
   /**
+   * Get the active working directory from the sudocode server.
+   * 
+   * This queries the server for the UI's currently selected project and returns
+   * its path. Falls back to the cached workingDir if the server is unavailable
+   * or no project is selected.
+   * 
+   * This enables the MCP server to correctly target the project the user
+   * is currently working on in the UI, even if it changed after MCP startup.
+   * 
+   * Note: If workDir was explicitly provided via -w/--working-dir flag,
+   * this returns the explicit path without querying the server.
+   */
+  private async getActiveWorkDir(): Promise<string> {
+    // If workDir was explicitly provided, respect it
+    if (this.workDirExplicit) {
+      return this.workingDir;
+    }
+
+    if (!this.serverUrl) {
+      return this.workingDir;
+    }
+
+    try {
+      const response = await fetch(`${this.serverUrl}/api/projects/open`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+        signal: AbortSignal.timeout(2000), // Quick timeout - don't block CLI ops
+      });
+
+      if (!response.ok) {
+        // Server returned an error - fall back to cached workingDir
+        return this.workingDir;
+      }
+
+      const result = await response.json() as {
+        success: boolean;
+        currentProjectId?: string;
+        data: Array<{
+          id: string;
+          path: string;
+          name: string;
+          isCurrent?: boolean;
+          openedAt?: string;
+        }>;
+      };
+
+      if (result.success && result.data && result.data.length > 0) {
+        // Find the UI's current project (marked with isCurrent or first in sorted list)
+        const currentProject = result.data.find(p => p.isCurrent) || result.data[0];
+        if (currentProject.path && currentProject.path !== this.workingDir) {
+          console.error(
+            `[SudocodeClient] Using UI's current project path: ${currentProject.path} (was: ${this.workingDir})`
+          );
+          return currentProject.path;
+        }
+        return currentProject.path || this.workingDir;
+      }
+    } catch (error) {
+      // Server not available or timeout - fall back silently
+      // This is expected when running without the local server
+      if (process.env.DEBUG_MCP) {
+        console.error(
+          `[SudocodeClient] Could not get active project from server: ${error instanceof Error ? error.message : error}`
+        );
+      }
+    }
+
+    return this.workingDir;
+  }
+
+  /**
    * Execute a CLI command and return parsed JSON output
    */
   async exec(args: string[], options?: { timeout?: number }): Promise<any> {
@@ -111,9 +191,12 @@ export class SudocodeClient {
       cmdArgs.push("--db", this.dbPath);
     }
 
+    // Get the active working directory (may query server if configured)
+    const workDir = await this.getActiveWorkDir();
+
     return new Promise((resolve, reject) => {
       const proc = spawn(this.cliPath, cmdArgs, {
-        cwd: this.workingDir,
+        cwd: workDir,
         env: {
           ...process.env,
           SUDOCODE_DISABLE_UPDATE_CHECK: "true",

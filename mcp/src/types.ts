@@ -58,6 +58,8 @@ export interface SudocodeClientConfig {
   cliPath?: string;
   dbPath?: string;
   syncOnStartup?: boolean;
+  /** Server URL for dynamic working directory resolution */
+  serverUrl?: string;
 }
 
 /**

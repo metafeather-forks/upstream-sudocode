@@ -32,6 +32,9 @@ vi.mock('@/lib/api', () => ({
     getChanges: vi.fn(),
     worktreeExists: vi.fn(),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 // Mock child components

@@ -397,6 +397,24 @@ export class SudocodeAPIClient {
     });
   }
 
+  /**
+   * Get all currently open projects.
+   * Useful for determining the active working directory.
+   */
+  async getOpenProjects(): Promise<Array<{
+    id: string;
+    path: string;
+    name: string;
+    openedAt?: string;
+  }>> {
+    return this.request<Array<{
+      id: string;
+      path: string;
+      name: string;
+      openedAt?: string;
+    }>>("GET", "/api/projects/open");
+  }
+
   // ===========================================================================
   // Overview Methods
   // ===========================================================================

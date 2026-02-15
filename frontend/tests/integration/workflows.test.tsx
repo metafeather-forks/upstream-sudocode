@@ -52,6 +52,9 @@ vi.mock('@/lib/api', () => ({
       gitProvider: 'github',
     })),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 

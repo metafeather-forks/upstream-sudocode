@@ -26,6 +26,8 @@ export interface ProjectsConfig {
   projects: Record<string, ProjectInfo>
   /** Ordered list of recently opened project IDs (most recent first) */
   recentProjects: string[]
+  /** The UI's currently selected project ID */
+  currentProjectId?: string
   /** User settings for project management */
   settings: {
     /** Maximum number of projects to keep in recent list */

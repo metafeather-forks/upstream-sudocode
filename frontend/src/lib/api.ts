@@ -486,6 +486,13 @@ export const projectsApi = {
         hasSudocode: boolean
       }>
     }>(`/projects/browse${path ? `?path=${encodeURIComponent(path)}` : ''}`),
+
+  // Get the UI's current project ID
+  getCurrent: () => get<{ currentProjectId: string | null }>('/projects/current'),
+
+  // Set the UI's current project ID
+  setCurrent: (projectId: string | null) =>
+    post<{ currentProjectId: string | null }>('/projects/current', { projectId }),
 }
 
 /**

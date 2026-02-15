@@ -134,6 +134,23 @@ Environment Variables:
 }
 
 /**
+ * Fix unexpanded ${workspaceFolder} or other VS Code variables.
+ * Returns the fixed path, or the original if no fix needed.
+ */
+function fixUnexpandedVariables(workingDir: string | undefined): string | undefined {
+  if (!workingDir) return workingDir;
+  
+  // Detect unexpanded VS Code variables
+  if (workingDir === "${workspaceFolder}" || workingDir.includes("${")) {
+    const fixed = process.env.PWD || process.cwd();
+    console.error(`[mcp] Fixed unexpanded variable: "${workingDir}" -> "${fixed}"`);
+    return fixed;
+  }
+  
+  return workingDir;
+}
+
+/**
  * Validate configuration and resolve scopes.
  */
 function validateConfig(config: SudocodeMCPServerConfig): void {
@@ -144,6 +161,10 @@ function validateConfig(config: SudocodeMCPServerConfig): void {
   if (!config.serverUrl && process.env.SUDOCODE_SERVER_URL) {
     config.serverUrl = process.env.SUDOCODE_SERVER_URL;
   }
+
+  // Fix unexpanded VS Code variables BEFORE generating project ID
+  // This ensures both workingDir and projectId are consistent
+  config.workingDir = fixUnexpandedVariables(config.workingDir);
 
   // Auto-discover project ID from working directory if not specified
   if (!config.projectId && config.workingDir) {

@@ -14,6 +14,9 @@ vi.mock('@/lib/api', () => ({
   repositoryApi: {
     getInfo: vi.fn(),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 describe('useRepositoryInfo', () => {

@@ -329,4 +329,23 @@ export class ProjectRegistry {
   getConfigPath(): string {
     return this.configPath
   }
+
+  /**
+   * Set the UI's current project ID
+   * This is the project the UI believes is active, independent of MCP's workDir
+   */
+  setCurrentProjectId(projectId: string | null): void {
+    if (projectId) {
+      this.config.currentProjectId = projectId
+    } else {
+      delete this.config.currentProjectId
+    }
+  }
+
+  /**
+   * Get the UI's current project ID
+   */
+  getCurrentProjectId(): string | null {
+    return this.config.currentProjectId || null
+  }
 }

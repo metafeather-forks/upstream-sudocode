@@ -33,6 +33,9 @@ vi.mock('@/lib/api', () => ({
   issuesApi: {
     getAll: vi.fn(),
   },
+  projectsApi: {
+    setCurrent: vi.fn().mockResolvedValue({}),
+  },
 }))
 
 // Mock useProject hook

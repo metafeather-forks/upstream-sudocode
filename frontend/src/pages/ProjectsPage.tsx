@@ -68,6 +68,7 @@ export default function ProjectsPage() {
 
   const handleOpenProject = async (project: ProjectInfo) => {
     try {
+      // Open project - MCP servers dynamically lookup current project via getActiveWorkDir()
       await openProject.mutateAsync({ path: project.path })
       setCurrentProjectId(project.id)
       navigate(buildProjectPath(project.id, '/issues'))
@@ -102,7 +103,7 @@ export default function ProjectsPage() {
         return
       }
 
-      // If valid, open the project
+      // If valid, open the project - MCP servers dynamically lookup current project via getActiveWorkDir()
       const project = await openProject.mutateAsync({ path: projectPath.trim() })
       setCurrentProjectId(project.id)
       setOpenDialogOpen(false)
