@@ -47,10 +47,14 @@ import type {
   EscalationResponseRequest,
 } from '@/types/workflow'
 
+// Default timeout: 10 minutes
+// Extended to handle long running agent executions
+const DEFAULT_TIMEOUT = (10 * 60 * 1000) 
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 30000,
+  timeout: DEFAULT_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },

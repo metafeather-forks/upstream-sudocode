@@ -334,9 +334,14 @@ export function InlineExecutionView({
   }, [])
 
   // Handle execution errors
+  // If chain data is already loaded, streaming errors are non-fatal
+  // This prevents transient streaming errors from breaking the UI
   const handleExecutionError = useCallback((err: Error) => {
-    setError(err.message)
-  }, [])
+    console.error('[InlineExecutionView] Execution error:', err.message)
+    if (!chainData) {
+      setError(err.message)
+    }
+  }, [chainData])
 
   // Handle delete worktree action
   const handleDeleteWorktree = async () => {

@@ -1332,8 +1332,13 @@ export function useSessionUpdateStream(
       try {
         processUpdate(data.update)
       } catch (err) {
-        console.error('[useSessionUpdateStream] Error processing update:', err)
-        setError(err instanceof Error ? err : new Error('Failed to process SessionUpdate'))
+        // Log the error but don't set error state - individual update failures
+        // shouldn't cause the entire execution view to show an error.
+        // The execution is likely still running and future updates will arrive.
+        console.error('[useSessionUpdateStream] Error processing update (continuing):', err, {
+          updateType: (data.update as { sessionUpdate?: string })?.sessionUpdate,
+          executionId: data.executionId,
+        })
       }
     },
     [executionId, processUpdate, handleExecutionEvent]

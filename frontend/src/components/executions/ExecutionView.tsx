@@ -453,9 +453,14 @@ export function ExecutionView({ executionId, onFollowUpCreated, onStatusChange, 
   }, [])
 
   // Handle execution errors
+  // If chain data is already loaded, streaming errors are non-fatal
+  // This prevents transient streaming errors from breaking the UI
   const handleExecutionError = useCallback((err: Error) => {
-    setError(err.message)
-  }, [])
+    console.error('[ExecutionView] Execution error:', err.message)
+    if (!chainData) {
+      setError(err.message)
+    }
+  }, [chainData])
 
   // Handle cancel action for a specific execution
   // For persistent sessions, this interrupts (stops current work, keeps session alive)

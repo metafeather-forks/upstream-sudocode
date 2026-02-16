@@ -12,6 +12,9 @@ export const DB_CONFIG = `
 -- Enable WAL mode for better concurrency
 PRAGMA journal_mode=WAL;
 
+-- Wait up to 5 seconds for locks to be released (prevents SQLITE_BUSY errors)
+PRAGMA busy_timeout=5000;
+
 -- Enforce foreign keys
 PRAGMA foreign_keys=ON;
 
