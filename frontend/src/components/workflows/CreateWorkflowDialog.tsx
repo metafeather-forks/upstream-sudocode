@@ -625,6 +625,7 @@ export function CreateWorkflowDialog({
                     <SelectItem value="codex">Codex</SelectItem>
                     <SelectItem value="copilot">Copilot</SelectItem>
                     <SelectItem value="cursor">Cursor</SelectItem>
+                    <SelectItem value="opencode">Opencode</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
