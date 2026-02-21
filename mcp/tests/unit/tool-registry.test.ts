@@ -28,7 +28,8 @@ describe("tool-registry", () => {
       expect(names).toContain("link");
       expect(names).toContain("add_reference");
       expect(names).toContain("add_feedback");
-      expect(defaultTools).toHaveLength(10);
+      expect(names).toContain("get_project_id");
+      expect(defaultTools).toHaveLength(11);
     });
 
     it("contains overview tools", () => {
@@ -106,7 +107,7 @@ describe("tool-registry", () => {
 
     it("returns only default tools for default scope", () => {
       const result = getToolsForScopes(new Set(["default"]));
-      expect(result).toHaveLength(10);
+      expect(result).toHaveLength(11);
       expect(result.every((t) => t.scope === "default")).toBe(true);
     });
 

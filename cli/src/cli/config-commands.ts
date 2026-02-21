@@ -3,6 +3,8 @@
  */
 
 import chalk from "chalk";
+import * as crypto from "crypto";
+import * as path from "path";
 import type Database from "better-sqlite3";
 import {
   getConfig,
@@ -223,10 +225,62 @@ export async function handleConfigShow(
 }
 
 /**
+ * Generate a deterministic, human-readable project ID from path.
+ * Format: <repo-name>-<8-char-hash>
+ * Example: sudocode-a1b2c3d4
+ *
+ * Uses the same algorithm as server's ProjectRegistry and MCP.
+ */
+export function generateProjectId(projectPath: string): string {
+  // Resolve to absolute path
+  const absolutePath = path.resolve(projectPath);
+
+  // Extract repo name from path
+  const repoName = path.basename(absolutePath);
+
+  // Create URL-safe version of repo name
+  const safeName = repoName
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") // Remove leading/trailing dashes
+    .slice(0, 32);
+
+  // Generate short hash for uniqueness
+  const hash = crypto
+    .createHash("sha256")
+    .update(absolutePath)
+    .digest("hex")
+    .slice(0, 8);
+
+  return `${safeName}-${hash}`;
+}
+
+/**
+ * Handle config project-id command
+ * Returns the project ID for a given path (defaults to current directory)
+ */
+export async function handleConfigProjectId(
+  ctx: CommandContext,
+  inputPath: string | undefined,
+  options: { jsonOutput?: boolean }
+): Promise<void> {
+  const jsonOutput = options.jsonOutput || ctx.jsonOutput;
+  const targetPath = inputPath ? path.resolve(inputPath) : process.cwd();
+  const projectId = generateProjectId(targetPath);
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ path: targetPath, projectId }));
+  } else {
+    console.log(projectId);
+  }
+}
+
+/**
  * Get a nested value from an object using dot notation
  */
-function getNestedValue(obj: Config | ProjectConfig | LocalConfig, path: string): unknown {
-  const parts = path.split(".");
+function getNestedValue(obj: Config | ProjectConfig | LocalConfig, keyPath: string): unknown {
+  const parts = keyPath.split(".");
   let current: unknown = obj;
 
   for (const part of parts) {
@@ -242,8 +296,8 @@ function getNestedValue(obj: Config | ProjectConfig | LocalConfig, path: string)
 /**
  * Set a nested value in an object using dot notation
  */
-function setNestedValue(obj: ProjectConfig | LocalConfig, path: string, value: unknown): void {
-  const parts = path.split(".");
+function setNestedValue(obj: ProjectConfig | LocalConfig, keyPath: string, value: unknown): void {
+  const parts = keyPath.split(".");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let current: any = obj;
 

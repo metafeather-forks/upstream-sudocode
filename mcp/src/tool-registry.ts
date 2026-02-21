@@ -345,6 +345,24 @@ const DEFAULT_TOOLS: ToolDefinition[] = [
       required: ["to_id"],
     },
   },
+  {
+    name: "get_project_id",
+    scope: "default",
+    description:
+      "Get the deterministic project ID for a given path. " +
+      "Project IDs are generated from the directory name and path hash. " +
+      "If no path is provided, uses the current working directory.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute or relative path to get the project ID for. Defaults to current working directory.",
+        },
+      },
+    },
+  },
 ];
 
 // =============================================================================

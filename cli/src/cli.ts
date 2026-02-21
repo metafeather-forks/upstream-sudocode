@@ -70,6 +70,7 @@ import {
   handleConfigGet,
   handleConfigSet,
   handleConfigShow,
+  handleConfigProjectId,
 } from "./cli/config-commands.js";
 import { getUpdateNotification } from "./update-checker.js";
 import { VERSION } from "./version.js";
@@ -410,6 +411,13 @@ config
   .description("Show current source of truth configuration")
   .action(async () => {
     await handleConfigShow(getContext(), { jsonOutput });
+  });
+
+config
+  .command("project-id [path]")
+  .description("Get the project ID for a path (defaults to current directory)")
+  .action(async (inputPath) => {
+    await handleConfigProjectId(getContext(), inputPath, { jsonOutput });
   });
 
 // ============================================================================

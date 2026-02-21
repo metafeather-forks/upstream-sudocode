@@ -18,6 +18,7 @@ import * as specTools from "./tools/specs.js";
 import * as relationshipTools from "./tools/relationships.js";
 import * as feedbackTools from "./tools/feedback.js";
 import * as referenceTools from "./tools/references.js";
+import * as projectTools from "./tools/project.js";
 import { SudocodeMCPServerConfig } from "./types.js";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -299,6 +300,8 @@ sudocode is a git-native spec and issue management system designed for AI-assist
         return referenceTools.addReference(this.client, args as any);
       case "add_feedback":
         return feedbackTools.addFeedback(this.client, args as any);
+      case "get_project_id":
+        return projectTools.getProjectId(this.client, args as any);
       default:
         throw new Error(`Unknown CLI tool: ${name}`);
     }
