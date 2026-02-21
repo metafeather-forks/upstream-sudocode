@@ -57,9 +57,13 @@ describe("Query CLI Commands", () => {
     processExitSpy.mockRestore();
   });
 
+  // Helper to strip ANSI escape codes from output
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
   // Helper to extract issue ID from console output
   const extractIssueId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bi-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find issue ID in output: ${output}`);
@@ -82,7 +86,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("No ready issues");
     });
 
@@ -97,7 +101,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Ready Issues (2)");
       expect(output).toContain("Ready Issue 1");
       expect(output).toContain("Ready Issue 2");
@@ -118,7 +122,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       // Should show 2 ready issues (blocking and ready, but not blocked)
       expect(output).toContain("Ready Issues (2)");
       expect(output).toContain("Blocking Issue");
@@ -140,7 +144,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Ready Issues (1)");
       expect(output).toContain("Open Issue");
       expect(output).not.toContain("Closed Issue");
@@ -160,7 +164,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Ready Issues (1)");
       expect(output).toContain("Active Issue");
       expect(output).not.toContain("Archived Issue");
@@ -178,7 +182,7 @@ describe("Query CLI Commands", () => {
 
       await handleReady(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("@john");
     });
 
@@ -243,7 +247,7 @@ describe("Query CLI Commands", () => {
 
       await handleBlocked(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("No blocked issues");
     });
 
@@ -263,7 +267,7 @@ describe("Query CLI Commands", () => {
 
       await handleBlocked(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Blocked Issues (2)");
       expect(output).toContain("Blocked Issue 1");
       expect(output).toContain("Blocked Issue 2");
@@ -283,7 +287,7 @@ describe("Query CLI Commands", () => {
 
       await handleBlocked(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Blocked Issue");
       expect(output).not.toContain("Ready Issue");
       expect(output).not.toContain("Blocking Issue");
@@ -305,7 +309,7 @@ describe("Query CLI Commands", () => {
 
       await handleBlocked(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       // Issue should not be blocked anymore since blocker is closed
       expect(output).toContain("No blocked issues");
     });

@@ -61,9 +61,13 @@ describe("Status CLI Commands", () => {
     processExitSpy.mockRestore();
   });
 
+  // Helper to strip ANSI escape codes from output
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
   // Helper to extract issue ID from console output
   const extractIssueId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bi-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find issue ID in output: ${output}`);
@@ -73,7 +77,7 @@ describe("Status CLI Commands", () => {
 
   // Helper to extract spec ID from console output
   const extractSpecId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bs-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find spec ID in output: ${output}`);
@@ -87,7 +91,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("0 total");
       expect(output).toContain("Sudocode Status");
     });
@@ -108,7 +112,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Specs:");
       expect(output).toContain("2 total");
     });
@@ -138,7 +142,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("3 total");
       expect(output).toContain("1 open");
       expect(output).toContain("1 in_progress");
@@ -156,7 +160,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("2 ready to work on");
     });
 
@@ -179,7 +183,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("1 blocked");
     });
 
@@ -239,7 +243,7 @@ describe("Status CLI Commands", () => {
 
       await handleStatus(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("1 open");
       expect(output).toContain("1 in_progress");
       expect(output).toContain("1 blocked");
@@ -275,7 +279,7 @@ describe("Status CLI Commands", () => {
 
       await handleStats(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Project Statistics");
       expect(output).toContain("Specs:");
       expect(output).toContain("Issues:");
@@ -317,7 +321,7 @@ describe("Status CLI Commands", () => {
 
       await handleStats(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Total: 3");
       expect(output).toContain("references");
       expect(output).toContain("implements");
@@ -346,7 +350,7 @@ describe("Status CLI Commands", () => {
 
       await handleStats(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Recent Activity (last 7 days):");
       expect(output).toContain("1 issues created");
       expect(output).toContain("1 issues updated");
@@ -367,7 +371,7 @@ describe("Status CLI Commands", () => {
 
       await handleStats(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("1 issues closed");
     });
 
@@ -414,7 +418,7 @@ describe("Status CLI Commands", () => {
 
       await handleStats(ctx, {});
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Relationships:");
       expect(output).toContain("Total: 0");
     });

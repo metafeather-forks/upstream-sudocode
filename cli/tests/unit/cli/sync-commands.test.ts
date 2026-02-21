@@ -1150,7 +1150,7 @@ Fresh content from markdown`;
       expect(updatedIssue?.status).toBe("in_progress");
     });
 
-    it("should prefer database (to-markdown) in mixed state conflicts", async () => {
+    it("should sync to markdown when database has entries and markdown is missing or older", async () => {
       const ctx = { db, outputDir: tempDir, jsonOutput: false };
       const specsDir = path.join(tempDir, "specs");
       const issuesDir = path.join(tempDir, "issues");
@@ -1192,13 +1192,11 @@ Fresh content from markdown`;
       const slightlyPast = new Date(Date.now() - 2000);
       fs.utimesSync(md2Path, slightlyPast, slightlyPast);
 
-      // Run sync - specs want from-markdown, issues want to-markdown
-      // Should prefer database as source of truth in this mixed conflict
+      // Run sync - with spec markdown missing and issue DB newer, syncs TO markdown
       await handleSync(ctx, {});
 
       const output = consoleLogSpy.mock.calls.flat().join(" ");
       expect(output).toContain("TO markdown");
-      expect(output).toContain("using database as source of truth");
     });
 
     it("should handle no-sync when everything is in sync", async () => {

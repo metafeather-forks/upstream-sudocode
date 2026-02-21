@@ -15,6 +15,9 @@ import * as installSource from "../../../src/install-source.js";
 // Mock child_process
 vi.mock("child_process");
 
+// Helper to strip ANSI codes from output
+const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
 describe("Update CLI Commands", () => {
   let consoleLogSpy: any;
   let consoleErrorSpy: any;
@@ -56,7 +59,7 @@ describe("Update CLI Commands", () => {
       await handleUpdate();
 
       // Should show metapackage detection message
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("metapackage installation");
 
       // Should attempt to install metapackage
@@ -84,7 +87,7 @@ describe("Update CLI Commands", () => {
       await handleUpdate();
 
       // Should show standalone CLI detection message
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("standalone CLI installation");
 
       // Should attempt to install CLI package
@@ -118,7 +121,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Update completed successfully");
 
       // Should not mention retrying with --force
@@ -155,7 +158,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("File already exists, retrying with --force");
       expect(output).toContain("Update completed successfully");
       expect(installAttempts).toBe(2);
@@ -182,7 +185,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).not.toContain("retrying with --force");
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Update failed")
@@ -201,7 +204,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Already on latest version");
       expect(execSync).not.toHaveBeenCalledWith(
         expect.stringContaining("npm install"),
@@ -221,7 +224,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Unable to check for updates");
       expect(output).toContain("Attempting to update anyway");
 
@@ -254,7 +257,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdate();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("npm install -g sudocode --force");
     });
   });
@@ -276,7 +279,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdateCheck();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Current version");
       expect(output).toContain("0.1.5");
       expect(output).toContain("Latest version");
@@ -304,7 +307,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdateCheck();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("You are using the latest version");
     });
 
@@ -320,7 +323,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdateCheck();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Unable to check for updates");
       expect(output).toContain("npm view @sudocode-ai/cli version");
     });
@@ -341,7 +344,7 @@ describe("Update CLI Commands", () => {
 
       await handleUpdateCheck();
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Package: @sudocode-ai/cli");
       expect(output).toContain("npm install -g @sudocode-ai/cli --force");
     });
@@ -517,7 +520,7 @@ describe("Update CLI Commands", () => {
       await handleUpdateDismiss();
 
       expect(dismissSpy).toHaveBeenCalledWith("0.1.7");
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Update notifications dismissed for 30 days");
     });
 
@@ -535,7 +538,7 @@ describe("Update CLI Commands", () => {
       await handleUpdateDismiss();
 
       expect(dismissSpy).not.toHaveBeenCalled();
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain("Already on latest version");
       expect(output).toContain("No update notifications to dismiss");
     });

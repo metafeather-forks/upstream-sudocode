@@ -58,9 +58,13 @@ describe("Issue CLI Commands", () => {
     processExitSpy.mockRestore();
   });
 
+  // Helper to strip ANSI escape codes from output
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
   // Helper to extract issue ID from console output
   const extractIssueId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bi-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find issue ID in output: ${output}`);
@@ -217,7 +221,7 @@ describe("Issue CLI Commands", () => {
 
       await handleIssueShow(ctx, issueId);
 
-      const output = consoleLogSpy.mock.calls.flat().join(" ");
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
       expect(output).toContain(issueId);
       expect(output).toContain("Show Test Issue");
       expect(output).toContain("user1");
@@ -347,10 +351,9 @@ describe("Issue CLI Commands", () => {
 
       await handleIssueUpdate(ctx, childIssueId, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "✓ Updated issue",
-        expect.anything()
-      );
+      // Verify update message was logged (chalk-wrapped)
+      const output = stripAnsi(consoleLogSpy.mock.calls.flat().join(" "));
+      expect(output).toContain("✓ Updated issue");
 
       // Verify parent was set in database
       const issue = getIssue(db, childIssueId);

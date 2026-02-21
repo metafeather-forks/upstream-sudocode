@@ -59,9 +59,13 @@ describe("Relationship CLI Commands", () => {
     processExitSpy.mockRestore();
   });
 
+  // Helper to strip ANSI escape codes from output
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
   // Helper to extract spec ID from console output
   const extractSpecId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bs-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find spec ID in output: ${output}`);
@@ -71,7 +75,7 @@ describe("Relationship CLI Commands", () => {
 
   // Helper to extract issue ID from console output
   const extractIssueId = (spy: any): string => {
-    const output = spy.mock.calls.flat().join(" ");
+    const output = stripAnsi(spy.mock.calls.flat().join(" "));
     const match = output.match(/\bi-[0-9a-z]{4,8}\b/);
     if (!match) {
       throw new Error(`Could not find issue ID in output: ${output}`);
