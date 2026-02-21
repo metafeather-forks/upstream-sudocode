@@ -156,6 +156,7 @@ export class ExecutionService {
   private projectId: string;
   private lifecycleService: ExecutionLifecycleService;
   private repoPath: string;
+  private sudocodeDir: string;
   private logsStore: ExecutionLogsStore;
   private workerPool?: ExecutionWorkerPool;
   private serverUrl?: string;
@@ -171,6 +172,7 @@ export class ExecutionService {
    * @param lifecycleService - Optional execution lifecycle service (creates one if not provided)
    * @param logsStore - Optional execution logs store (creates one if not provided)
    * @param workerPool - Optional worker pool for isolated execution processes
+   * @param sudocodeDir - Optional path to sudocode directory (defaults to <repoPath>/.sudocode)
    */
   constructor(
     db: Database.Database,
@@ -178,11 +180,13 @@ export class ExecutionService {
     repoPath: string,
     lifecycleService?: ExecutionLifecycleService,
     logsStore?: ExecutionLogsStore,
-    workerPool?: ExecutionWorkerPool
+    workerPool?: ExecutionWorkerPool,
+    sudocodeDir?: string
   ) {
     this.db = db;
     this.projectId = projectId;
     this.repoPath = repoPath;
+    this.sudocodeDir = sudocodeDir || path.join(repoPath, ".sudocode");
     this.lifecycleService =
       lifecycleService || new ExecutionLifecycleService(db, repoPath);
     this.logsStore = logsStore || new ExecutionLogsStore(db);
@@ -529,7 +533,7 @@ export class ExecutionService {
       .filter(Boolean)
       .join("\n");
 
-    // Inject working directory into sudocode-mcp args now that workDir is known
+    // Inject working directory and sudocode directory into sudocode-mcp args
     // This ensures MCP tools operate on the correct project, not the server's cwd
     if (mergedConfig.mcpServers?.["sudocode-mcp"]) {
       const mcpConfig = mergedConfig.mcpServers["sudocode-mcp"] as {
@@ -537,11 +541,24 @@ export class ExecutionService {
         args?: string[];
       };
       const existingArgs = mcpConfig.args || [];
-      // Only add -w if not already specified by user
+      const newArgs: string[] = [];
+      
+      // Add -w if not already specified by user
       if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
-        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        newArgs.push("-w", workDir);
+      }
+      
+      // Always add -d if not already specified by user
+      // This ensures the MCP server knows the exact sudocode directory to use,
+      // regardless of whether it matches the default or not
+      if (!existingArgs.includes("-d") && !existingArgs.includes("--sudocode-dir")) {
+        newArgs.push("-d", this.sudocodeDir);
+      }
+      
+      if (newArgs.length > 0) {
+        mcpConfig.args = [...newArgs, ...existingArgs];
         console.log(
-          `[ExecutionService] Injected -w ${workDir} into sudocode-mcp args`
+          `[ExecutionService] Injected ${newArgs.join(" ")} into sudocode-mcp args`
         );
       }
     }
@@ -869,7 +886,7 @@ ${feedback}`;
       .filter(Boolean)
       .join("\n");
 
-    // Inject working directory into sudocode-mcp args now that workDir is known
+    // Inject working directory and sudocode directory into sudocode-mcp args
     // This ensures MCP tools operate on the correct project, not the server's cwd
     if (parsedConfig.mcpServers?.["sudocode-mcp"]) {
       const mcpConfig = parsedConfig.mcpServers["sudocode-mcp"] as {
@@ -877,11 +894,24 @@ ${feedback}`;
         args?: string[];
       };
       const existingArgs = mcpConfig.args || [];
-      // Only add -w if not already specified by user
+      const newArgs: string[] = [];
+      
+      // Add -w if not already specified by user
       if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
-        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        newArgs.push("-w", workDir);
+      }
+      
+      // Always add -d if not already specified by user
+      // This ensures the MCP server knows the exact sudocode directory to use,
+      // regardless of whether it matches the default or not
+      if (!existingArgs.includes("-d") && !existingArgs.includes("--sudocode-dir")) {
+        newArgs.push("-d", this.sudocodeDir);
+      }
+      
+      if (newArgs.length > 0) {
+        mcpConfig.args = [...newArgs, ...existingArgs];
         console.log(
-          `[ExecutionService] Injected -w ${workDir} into sudocode-mcp args for follow-up`
+          `[ExecutionService] Injected ${newArgs.join(" ")} into sudocode-mcp args for follow-up`
         );
       }
     }
@@ -1871,6 +1901,10 @@ ${feedback}`;
 
       // Check if narration is enabled - if so, we'll add the voice scope
       const narrationEnabled = userConfig.narrationConfig?.enabled ?? false;
+      
+      // Check if sudocodeDir differs from the default (repoPath/.sudocode)
+      const defaultSudocodeDir = path.join(this.repoPath, ".sudocode");
+      const hasCustomSudocodeDir = this.sudocodeDir !== defaultSudocodeDir;
 
       if (isProjectAssistant) {
         if (this.serverUrl) {
@@ -1914,6 +1948,14 @@ ${feedback}`;
       } else {
         console.info(
           "[ExecutionService] Adding sudocode-mcp with default scope (auto-injection)"
+        );
+      }
+
+      // Add -d flag if project uses a custom sudocodeDir (not the default <repoPath>/.sudocode)
+      if (hasCustomSudocodeDir) {
+        mcpArgs.push("-d", this.sudocodeDir);
+        console.info(
+          `[ExecutionService] Adding -d ${this.sudocodeDir} to sudocode-mcp (custom sudocodeDir)`
         );
       }
 

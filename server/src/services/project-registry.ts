@@ -57,6 +57,7 @@ export class ProjectRegistry {
       const configDir = path.dirname(this.configPath)
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true })
+        console.log(`[registry] load: created config directory ${configDir}`)
       }
 
       // Load existing config or create default
@@ -69,22 +70,27 @@ export class ProjectRegistry {
           if (!this.config.version || !this.config.projects || !this.config.settings) {
             throw new Error('Invalid config structure')
           }
+          
+          const projectCount = Object.keys(this.config.projects).length
+          console.log(`[registry] load: loaded ${projectCount} projects from ${this.configPath}`)
         } catch (parseError) {
           // Config is corrupted, backup and create fresh
           const backupPath = `${this.configPath}.backup.${Date.now()}`
           fs.copyFileSync(this.configPath, backupPath)
-          console.warn(`Corrupted config backed up to: ${backupPath}`)
+          console.warn(`[registry] load: corrupted config backed up to: ${backupPath}`)
 
           this.config = getDefaultConfig()
           await this.save()
         }
       } else {
         // Create default config
+        console.log(`[registry] load: no config file found, creating default at ${this.configPath}`)
         await this.save()
       }
 
       return Ok(undefined)
     } catch (error: any) {
+      console.error(`[registry] load: failed to load config from ${this.configPath}:`, error.message)
       if (error.code === 'EACCES') {
         return Err({
           type: 'PERMISSION_DENIED',
@@ -112,8 +118,12 @@ export class ProjectRegistry {
       // Atomic rename
       fs.renameSync(tempPath, this.configPath)
 
+      const projectCount = Object.keys(this.config.projects).length
+      console.log(`[registry] save: saved ${projectCount} projects to ${this.configPath}`)
+
       return Ok(undefined)
     } catch (error: any) {
+      console.error(`[registry] save: failed to save config to ${this.configPath}:`, error.message)
       if (error.code === 'EACCES') {
         return Err({
           type: 'PERMISSION_DENIED',
@@ -157,23 +167,30 @@ export class ProjectRegistry {
   /**
    * Register a new project or update existing one
    * @param projectPath - Absolute path to project root directory
+   * @param customSudocodeDir - Optional custom sudocode directory path (only used for NEW projects)
    * @returns ProjectInfo for the registered project
    */
-  registerProject(projectPath: string): ProjectInfo {
+  registerProject(projectPath: string, customSudocodeDir?: string): ProjectInfo {
     const projectId = this.generateProjectId(projectPath)
-    const sudocodeDir = path.join(projectPath, '.sudocode')
     const now = new Date().toISOString()
 
     // Check if project already exists
     const existing = this.config.projects[projectId]
     if (existing) {
-      // Update existing project
+      // Update existing project - only update lastOpenedAt, NEVER overwrite sudocodeDir
+      // sudocodeDir is set once at init time and should not be changed
       existing.lastOpenedAt = now
       this.addToRecent(projectId)
+      console.log(`[registry] registerProject (existing): projectId=${projectId}, workingDir=${projectPath}, sudocodeDir=${existing.sudocodeDir}`)
       return existing
     }
 
     // Create new project info
+    // Priority for new projects: customSudocodeDir param > SUDOCODE_DIR env var > default
+    const sudocodeDir = customSudocodeDir || 
+                        process.env.SUDOCODE_DIR || 
+                        path.join(projectPath, '.sudocode')
+    
     const projectInfo: ProjectInfo = {
       id: projectId,
       name: path.basename(projectPath),
@@ -187,6 +204,15 @@ export class ProjectRegistry {
     this.config.projects[projectId] = projectInfo
     this.addToRecent(projectId)
 
+    console.log(`[registry] registerProject (new): projectId=${projectId}, workingDir=${projectPath}, sudocodeDir=${sudocodeDir}`)
+    if (customSudocodeDir) {
+      console.log(`[registry]   -> sudocodeDir from: customSudocodeDir parameter`)
+    } else if (process.env.SUDOCODE_DIR) {
+      console.log(`[registry]   -> sudocodeDir from: SUDOCODE_DIR env var`)
+    } else {
+      console.log(`[registry]   -> sudocodeDir from: default (<projectPath>/.sudocode)`)
+    }
+
     return projectInfo
   }
 
@@ -197,6 +223,7 @@ export class ProjectRegistry {
    */
   unregisterProject(projectId: string): boolean {
     if (!this.config.projects[projectId]) {
+      console.log(`[registry] unregisterProject: projectId=${projectId} not found`)
       return false
     }
 
@@ -207,6 +234,7 @@ export class ProjectRegistry {
       (id) => id !== projectId
     )
 
+    console.log(`[registry] unregisterProject: projectId=${projectId} removed`)
     return true
   }
 
@@ -214,14 +242,50 @@ export class ProjectRegistry {
    * Get project info by ID
    */
   getProject(projectId: string): ProjectInfo | null {
-    return this.config.projects[projectId] || null
+    const project = this.config.projects[projectId] || null
+    if (project) {
+      console.log(`[registry] getProject: projectId=${projectId}, workingDir=${project.path}, sudocodeDir=${project.sudocodeDir}`)
+    } else {
+      console.log(`[registry] getProject: projectId=${projectId} not found`)
+    }
+    return project
+  }
+
+  /**
+   * Get the sudocodeDir for a project path.
+   * 
+   * Priority (highest to lowest):
+   * 1. Stored value in projects.json (if project is registered)
+   * 2. SUDOCODE_DIR environment variable
+   * 3. Default: <projectPath>/.sudocode
+   * 
+   * This is the single source of truth for sudocodeDir resolution.
+   * All code paths that need sudocodeDir should use this method.
+   */
+  getSudocodeDir(projectPath: string): string {
+    const projectId = this.generateProjectId(projectPath)
+    const existing = this.config.projects[projectId]
+    
+    if (existing) {
+      // Use stored value - this is authoritative
+      console.log(`[registry] getSudocodeDir: projectId=${projectId}, workingDir=${projectPath}, sudocodeDir=${existing.sudocodeDir} (from stored config)`)
+      return existing.sudocodeDir
+    }
+    
+    // Not registered yet - compute from env var or default
+    const sudocodeDir = process.env.SUDOCODE_DIR || path.join(projectPath, '.sudocode')
+    const source = process.env.SUDOCODE_DIR ? 'SUDOCODE_DIR env var' : 'default'
+    console.log(`[registry] getSudocodeDir: projectId=${projectId}, workingDir=${projectPath}, sudocodeDir=${sudocodeDir} (from ${source}, project not registered)`)
+    return sudocodeDir
   }
 
   /**
    * Get all registered projects
    */
   getAllProjects(): ProjectInfo[] {
-    return Object.values(this.config.projects)
+    const projects = Object.values(this.config.projects)
+    console.log(`[registry] getAllProjects: ${projects.length} projects`)
+    return projects
   }
 
   /**

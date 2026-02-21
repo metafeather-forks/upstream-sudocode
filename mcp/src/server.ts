@@ -142,7 +142,8 @@ export class SudocodeMCPServer {
         if (initStatus.initialized) {
           this.isInitialized = true;
         } else {
-          const workingDir = this.client["workingDir"] || process.cwd();
+          // Use async method to get current working directory (supports project switching)
+          const workingDir = await this.client.getActiveWorkDir();
           return {
             content: [
               {
@@ -383,8 +384,8 @@ sudocode is a git-native spec and issue management system designed for AI-assist
     sudocodeExists: boolean;
     message?: string;
   }> {
-    const workingDir = this.client["workingDir"] || process.cwd();
-    const sudocodeDir = join(workingDir, ".sudocode");
+    // Use async methods to get current directories (supports project switching and custom sudocodeDir)
+    const sudocodeDir = await this.client.getSudocodeDir();
     const cacheDbPath = join(sudocodeDir, "cache.db");
     const issuesPath = join(sudocodeDir, "issues.jsonl");
     const specsPath = join(sudocodeDir, "specs.jsonl");
@@ -459,7 +460,8 @@ sudocode is a git-native spec and issue management system designed for AI-assist
    */
   private async checkInitialization() {
     const initStatus = await this.checkForInit();
-    const workingDir = this.client["workingDir"] || process.cwd();
+    // Use async method to get current working directory (supports project switching)
+    const workingDir = await this.client.getActiveWorkDir();
 
     if (initStatus.initialized) {
       this.isInitialized = true;

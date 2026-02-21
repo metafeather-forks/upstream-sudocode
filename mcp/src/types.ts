@@ -55,6 +55,8 @@ export type SpecType =
 
 export interface SudocodeClientConfig {
   workingDir?: string;
+  /** Explicit .sudocode directory path (override) */
+  sudocodeDir?: string;
   cliPath?: string;
   dbPath?: string;
   syncOnStartup?: boolean;

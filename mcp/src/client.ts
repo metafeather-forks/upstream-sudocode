@@ -6,9 +6,9 @@
  */
 
 import { spawn } from "child_process";
-import { fileURLToPath } from "url";
+import { existsSync } from "fs";
 import { dirname, join } from "path";
-import { existsSync, writeFileSync, chmodSync } from "fs";
+import { fileURLToPath } from "url";
 import { SudocodeClientConfig, SudocodeError } from "./types.js";
 
 export class SudocodeClient {
@@ -19,6 +19,7 @@ export class SudocodeClient {
   private dbPath?: string;
   private serverUrl?: string;
   private versionChecked = false;
+  private sudocodeDirOverride?: string;
 
   constructor(config?: SudocodeClientConfig) {
     // Track if workDir was explicitly provided (via -w/--working-dir flag)
@@ -35,8 +36,37 @@ export class SudocodeClient {
     }
 
     this.workingDir = workingDir;
-    this.dbPath = config?.dbPath || process.env.SUDOCODE_DB;
     this.serverUrl = config?.serverUrl || process.env.SUDOCODE_SERVER_URL;
+    
+    // Store explicit sudocodeDir override from config (NOT from SUDOCODE_DIR env var)
+    // SUDOCODE_DIR is only used as fallback when server is unavailable
+    // Priority: config.sudocodeDir > server dynamic > SUDOCODE_DIR env > static fallback
+    this.sudocodeDirOverride = config?.sudocodeDir;
+    
+    // Resolve dbPath with priority:
+    // 1. Explicit config.dbPath
+    // 2. SUDOCODE_DB env var
+    // 3. Explicit config.sudocodeDir
+    // 4. SUDOCODE_DIR env var (for project-specific databases)
+    // 5. Dynamic resolution at runtime (via getDbPath()) - NOT set statically here
+    // When serverUrl is configured and none of the above are set, we defer dbPath
+    // resolution to avoid using stale values
+    if (config?.dbPath) {
+      this.dbPath = config.dbPath;
+    } else if (process.env.SUDOCODE_DB) {
+      this.dbPath = process.env.SUDOCODE_DB;
+    } else if (this.sudocodeDirOverride) {
+      // Explicit config.sudocodeDir was provided
+      this.dbPath = join(this.sudocodeDirOverride, "cache.db");
+    } else if (process.env.SUDOCODE_DIR) {
+      // SUDOCODE_DIR env var provides project-specific directory
+      // This is typically set by direnv or the shell to point to the correct
+      // project database (e.g., .sudocode/projects/<project-id>/cache.db)
+      this.dbPath = join(process.env.SUDOCODE_DIR, "cache.db");
+    }
+    // Note: When serverUrl is set and no explicit dbPath/sudocodeDir, we DON'T
+    // set this.dbPath. This allows getSudocodeDir() to dynamically resolve and
+    // the CLI to use its own resolution based on the working directory
 
     // Auto-discover CLI path from node_modules or use configured/env path
     const cliInfo = this.findCliPath();
@@ -108,7 +138,7 @@ export class SudocodeClient {
    * Note: If workDir was explicitly provided via -w/--working-dir flag,
    * this returns the explicit path without querying the server.
    */
-  private async getActiveWorkDir(): Promise<string> {
+  async getActiveWorkDir(): Promise<string> {
     // If workDir was explicitly provided, respect it
     if (this.workDirExplicit) {
       return this.workingDir;
@@ -169,6 +199,143 @@ export class SudocodeClient {
   }
 
   /**
+   * Find a project's sudocodeDir by matching the working directory path.
+   * 
+   * This queries /api/projects (all registered projects) and finds the one
+   * whose path matches or contains the working directory. This is different
+   * from getSudocodeDirFromServer() which used the UI's currently open project.
+   * 
+   * Resolution:
+   * 1. Exact match on project.path
+   * 2. Working directory is inside a registered project (longest prefix match)
+   * 
+   * Returns null if no matching project found or server unavailable.
+   */
+  private async findSudocodeDirByPath(workingDir: string): Promise<string | null> {
+    if (!this.serverUrl) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${this.serverUrl}/api/projects`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+        signal: AbortSignal.timeout(2000),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const result = await response.json() as {
+        success: boolean;
+        data: Array<{
+          id: string;
+          path: string;
+          name: string;
+          sudocodeDir?: string;
+        }>;
+      };
+
+      if (!result.success || !result.data || result.data.length === 0) {
+        return null;
+      }
+
+      // Normalize the working directory for comparison
+      const normalizedWorkDir = workingDir.replace(/\/+$/, '');
+
+      // First, try exact match
+      const exactMatch = result.data.find(p => 
+        p.path && p.path.replace(/\/+$/, '') === normalizedWorkDir
+      );
+      if (exactMatch?.sudocodeDir) {
+        if (process.env.DEBUG_MCP) {
+          console.error(
+            `[SudocodeClient] Found exact project match for ${workingDir}: ${exactMatch.sudocodeDir}`
+          );
+        }
+        return exactMatch.sudocodeDir;
+      }
+
+      // Second, find longest prefix match (working dir is inside a project)
+      // Sort by path length descending to find the most specific match
+      const sortedProjects = result.data
+        .filter((p): p is typeof p & { path: string; sudocodeDir: string } => 
+          Boolean(p.path && p.sudocodeDir))
+        .sort((a, b) => b.path.length - a.path.length);
+
+      for (const project of sortedProjects) {
+        const normalizedProjectPath = project.path.replace(/\/+$/, '');
+        if (normalizedWorkDir.startsWith(normalizedProjectPath + '/') || 
+            normalizedWorkDir === normalizedProjectPath) {
+          if (process.env.DEBUG_MCP) {
+            console.error(
+              `[SudocodeClient] Found containing project for ${workingDir}: ${project.path} -> ${project.sudocodeDir}`
+            );
+          }
+          return project.sudocodeDir;
+        }
+      }
+
+      if (process.env.DEBUG_MCP) {
+        console.error(
+          `[SudocodeClient] No registered project found for ${workingDir}`
+        );
+      }
+      return null;
+    } catch (error) {
+      if (process.env.DEBUG_MCP) {
+        console.error(
+          `[SudocodeClient] Could not query projects from server: ${error instanceof Error ? error.message : error}`
+        );
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get the sudocode directory with dynamic resolution based on working directory.
+   * 
+   * Resolution priority:
+   * 1. Explicit config override (config.sudocodeDir)
+   * 2. Find project by working directory path (query server registry)
+   * 3. SUDOCODE_DIR env var (fallback when server unavailable)
+   * 4. Static fallback: join(workingDir, ".sudocode")
+   * 
+   * IMPORTANT: This resolves based on the working directory, NOT the UI's
+   * currently open project. This ensures the MCP tools work correctly even
+   * when the working directory differs from what's open in the sudocode UI.
+   */
+  async getSudocodeDir(): Promise<string> {
+    // 1. Explicit config override takes highest precedence
+    if (this.sudocodeDirOverride) {
+      return this.sudocodeDirOverride;
+    }
+
+    // 2. Try to find project by working directory path
+    const fromServer = await this.findSudocodeDirByPath(this.workingDir);
+    if (fromServer) {
+      return fromServer;
+    }
+
+    // 3. SUDOCODE_DIR env var as fallback when server is unavailable
+    if (process.env.SUDOCODE_DIR) {
+      if (process.env.DEBUG_MCP) {
+        console.error(
+          `[SudocodeClient] Using SUDOCODE_DIR fallback: ${process.env.SUDOCODE_DIR} (server unavailable)`
+        );
+      }
+      return process.env.SUDOCODE_DIR;
+    }
+
+    // 4. Static fallback: derive from working directory
+    return join(this.workingDir, ".sudocode");
+  }
+
+  /**
    * Execute a CLI command and return parsed JSON output
    */
   async exec(args: string[], options?: { timeout?: number }): Promise<any> {
@@ -186,9 +353,22 @@ export class SudocodeClient {
       cmdArgs.push("--json");
     }
 
-    // Add --db flag if dbPath is configured
-    if (this.dbPath && !cmdArgs.includes("--db")) {
-      cmdArgs.push("--db", this.dbPath);
+    // Add --db flag - use static dbPath or dynamically resolve from getSudocodeDir()
+    // This ensures the correct project-specific database is used even when the
+    // MCP server is shared across multiple projects
+    if (!cmdArgs.includes("--db")) {
+      if (this.dbPath) {
+        // Use statically configured dbPath
+        cmdArgs.push("--db", this.dbPath);
+      } else {
+        // Dynamically resolve database path from current project's sudocodeDir
+        const sudocodeDir = await this.getSudocodeDir();
+        const dynamicDbPath = join(sudocodeDir, "cache.db");
+        cmdArgs.push("--db", dynamicDbPath);
+        if (process.env.DEBUG_MCP) {
+          console.error(`[SudocodeClient] Using dynamic dbPath: ${dynamicDbPath}`);
+        }
+      }
     }
 
     // Get the active working directory (may query server if configured)

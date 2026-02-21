@@ -51,7 +51,9 @@ export function createSpecsRouter(): Router {
         options.offset = parseInt(req.query.offset as string, 10);
       }
 
+      console.log(`[specs] GET /api/specs: projectId=${req.project!.id}, sudocodeDir=${req.project!.sudocodeDir}`);
       const specs = getAllSpecs(req.project!.db, options);
+      console.log(`[specs] GET /api/specs: returned ${specs.length} specs`);
 
       res.json({
         success: true,

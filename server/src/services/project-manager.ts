@@ -19,6 +19,10 @@ import {
   performInitialization,
   isInitialized,
 } from "@sudocode-ai/cli/dist/cli/init-commands.js";
+import { importFromJSONL } from "@sudocode-ai/cli/dist/import.js";
+import { getConfig, isMarkdownFirst } from "@sudocode-ai/cli/dist/config.js";
+import { syncMarkdownToJSONL } from "@sudocode-ai/cli/dist/sync.js";
+import { exportToJSONL } from "@sudocode-ai/cli/dist/export.js";
 import { WorkflowEventEmitter } from "../workflow/workflow-event-emitter.js";
 import { createIntegrationSyncService } from "./integration-sync-service.js";
 import { SequentialWorkflowEngine } from "../workflow/engines/sequential-engine.js";
@@ -98,7 +102,9 @@ export class ProjectManager {
       const db = await this.getOrCreateDatabase(projectId, projectPath);
 
       // 5. Initialize all services for this project
-      const sudocodeDir = path.join(projectPath, ".sudocode");
+      // Get sudocodeDir from registry (which handles SUDOCODE_DIR env var)
+      const registeredProject = this.registry.registerProject(projectPath);
+      const sudocodeDir = registeredProject.sudocodeDir;
       const logsStore = new ExecutionLogsStore(db);
       const worktreeConfig = getWorktreeConfig(projectPath);
       const worktreeManager = new WorktreeManager(worktreeConfig);
@@ -114,7 +120,8 @@ export class ProjectManager {
         projectPath,
         undefined,
         logsStore,
-        undefined // No worker pool - use in-process execution
+        undefined, // No worker pool - use in-process execution
+        sudocodeDir
       );
 
       // 6. Create project context
@@ -172,7 +179,7 @@ export class ProjectManager {
         eventEmitter: workflowEventEmitter,
         config: {
           repoPath: projectPath,
-          dbPath: path.join(projectPath, ".sudocode", "cache.db"),
+          dbPath: path.join(sudocodeDir, "cache.db"),
           serverUrl,
           projectId,
         },
@@ -386,7 +393,7 @@ export class ProjectManager {
       }
 
       // 3. Check if already initialized
-      const sudocodeDir = path.join(projectPath, ".sudocode");
+      const sudocodeDir = this.registry.getSudocodeDir(projectPath);
       if (isInitialized(sudocodeDir)) {
         // Already initialized, just open it
         console.log(
@@ -504,7 +511,7 @@ export class ProjectManager {
     }
 
     // Check that .sudocode directory exists
-    const sudocodeDir = path.join(projectPath, ".sudocode");
+    const sudocodeDir = this.registry.getSudocodeDir(projectPath);
     if (!fs.existsSync(sudocodeDir)) {
       return Err({
         type: "INVALID_PROJECT",
@@ -512,21 +519,18 @@ export class ProjectManager {
       });
     }
 
-    // Check that cache.db exists
-    const dbPath = path.join(sudocodeDir, "cache.db");
-    if (!fs.existsSync(dbPath)) {
-      return Err({
-        type: "INVALID_PROJECT",
-        message: `Missing cache.db file: ${dbPath}`,
-      });
-    }
+    // Note: We no longer check for cache.db here.
+    // If cache.db is missing but JSONL files exist, getOrCreateDatabase() will
+    // automatically recreate the database and import from JSONL source files.
 
     return Ok(undefined);
   }
 
   /**
    * Get or create a database connection for a project
-   * Checks cache first, then initializes new connection
+   * Checks cache first, then initializes new connection.
+   * If the database file doesn't exist, creates it and imports from source files
+   * based on the project's sourceOfTruth config (JSONL or markdown).
    */
   private async getOrCreateDatabase(
     projectId: string,
@@ -550,12 +554,155 @@ export class ProjectManager {
       return cached.db;
     }
 
-    // Initialize new database
-    const dbPath = path.join(projectPath, ".sudocode", "cache.db");
-    console.log(`Initializing new database for ${projectId} at ${dbPath}`);
+    // Check if database file exists (before creating it)
+    const sudocodeDir = this.registry.getSudocodeDir(projectPath);
+    const dbPath = path.join(sudocodeDir, "cache.db");
+    const dbExisted = fs.existsSync(dbPath);
+
+    // Initialize database (creates if doesn't exist)
+    console.log(`Initializing database for ${projectId} at ${dbPath} (existed: ${dbExisted})`);
     const db = initDatabase({ path: dbPath });
 
+    // If database was newly created, import from source files
+    if (!dbExisted) {
+      await this.importFromSourceOfTruth(db, projectId, sudocodeDir);
+    }
+
     return db;
+  }
+
+  /**
+   * Import data into a newly created database from the appropriate source
+   * based on the project's sourceOfTruth config setting.
+   */
+  private async importFromSourceOfTruth(
+    db: Database.Database,
+    projectId: string,
+    sudocodeDir: string
+  ): Promise<void> {
+    const config = getConfig(sudocodeDir);
+    const markdownFirst = isMarkdownFirst(config);
+
+    if (markdownFirst) {
+      // Markdown is source of truth - sync from markdown files
+      console.log(`[${projectId}] Database was missing, importing from markdown (sourceOfTruth=markdown)...`);
+      await this.importFromMarkdownFiles(db, projectId, sudocodeDir);
+    } else {
+      // JSONL is source of truth (default) - import from JSONL files
+      console.log(`[${projectId}] Database was missing, importing from JSONL (sourceOfTruth=jsonl)...`);
+      await this.importFromJSONLFiles(db, projectId, sudocodeDir);
+    }
+  }
+
+  /**
+   * Import data from JSONL files (specs.jsonl, issues.jsonl)
+   */
+  private async importFromJSONLFiles(
+    db: Database.Database,
+    projectId: string,
+    sudocodeDir: string
+  ): Promise<void> {
+    try {
+      const result = await importFromJSONL(db, {
+        inputDir: sudocodeDir,
+        resolveCollisions: true,
+      });
+      console.log(
+        `[${projectId}] Imported from JSONL: specs(added=${result.specs.added}, updated=${result.specs.updated}), ` +
+        `issues(added=${result.issues.added}, updated=${result.issues.updated})`
+      );
+    } catch (error) {
+      // Log but don't fail - the database is still usable, just empty
+      console.warn(
+        `[${projectId}] Failed to import from JSONL (database will be empty):`,
+        error instanceof Error ? error.message : error
+      );
+    }
+  }
+
+  /**
+   * Import data from markdown files in specs/ and issues/ directories
+   */
+  private async importFromMarkdownFiles(
+    db: Database.Database,
+    projectId: string,
+    sudocodeDir: string
+  ): Promise<void> {
+    const specsDir = path.join(sudocodeDir, "specs");
+    const issuesDir = path.join(sudocodeDir, "issues");
+
+    let syncedCount = 0;
+    let errorCount = 0;
+
+    const syncOptions = {
+      outputDir: sudocodeDir,
+      autoExport: false,
+      autoInitialize: true,
+      writeBackFrontmatter: true,
+    };
+
+    // Helper to find markdown files recursively
+    const findMarkdownFiles = (dir: string): string[] => {
+      if (!fs.existsSync(dir)) return [];
+      const files: string[] = [];
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...findMarkdownFiles(fullPath));
+        } else if (entry.name.endsWith(".md")) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    };
+
+    try {
+      // Sync specs
+      const specFiles = findMarkdownFiles(specsDir);
+      if (specFiles.length > 0) {
+        console.log(`[${projectId}] Found ${specFiles.length} spec markdown files`);
+        for (const file of specFiles) {
+          const result = await syncMarkdownToJSONL(db, file, syncOptions);
+          if (result.success) {
+            syncedCount++;
+          } else {
+            errorCount++;
+            console.warn(`[${projectId}] Failed to sync ${path.basename(file)}: ${result.error}`);
+          }
+        }
+      }
+
+      // Sync issues
+      const issueFiles = findMarkdownFiles(issuesDir);
+      if (issueFiles.length > 0) {
+        console.log(`[${projectId}] Found ${issueFiles.length} issue markdown files`);
+        for (const file of issueFiles) {
+          const result = await syncMarkdownToJSONL(db, file, syncOptions);
+          if (result.success) {
+            syncedCount++;
+          } else {
+            errorCount++;
+            console.warn(`[${projectId}] Failed to sync ${path.basename(file)}: ${result.error}`);
+          }
+        }
+      }
+
+      // Export to JSONL to keep files in sync
+      if (syncedCount > 0) {
+        await exportToJSONL(db, { outputDir: sudocodeDir });
+      }
+
+      console.log(
+        `[${projectId}] Imported from markdown: ${syncedCount} files synced` +
+        (errorCount > 0 ? `, ${errorCount} errors` : "")
+      );
+    } catch (error) {
+      console.warn(
+        `[${projectId}] Failed to import from markdown (database will be empty):`,
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   /**

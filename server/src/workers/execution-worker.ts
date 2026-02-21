@@ -15,6 +15,7 @@
  * @module workers/execution-worker
  */
 
+import path from "path";
 import Database from "better-sqlite3";
 import type { Execution } from "@sudocode-ai/types";
 import type { WorkerToMainMessage, ExecutionResult } from "./worker-ipc.js";
@@ -259,7 +260,7 @@ async function runExecution(): Promise<void> {
     const voiceEnabled = isVoiceBroadcastEnabled(voiceConfig);
     const voiceNarrationSettings = getNarrationConfig(voiceConfig);
 
-    // 8.5. Inject working directory into sudocode-mcp args now that workDir is known
+    // 8.5. Inject working directory and sudocode directory into sudocode-mcp args
     // This ensures MCP tools operate on the correct project, not the server's cwd
     if (config.mcpServers?.["sudocode-mcp"]) {
       const mcpConfig = config.mcpServers["sudocode-mcp"] as {
@@ -267,11 +268,27 @@ async function runExecution(): Promise<void> {
         args?: string[];
       };
       const existingArgs = mcpConfig.args || [];
-      // Only add -w if not already specified by user
+      const newArgs: string[] = [];
+      
+      // Add -w if not already specified by user
       if (!existingArgs.includes("-w") && !existingArgs.includes("--working-dir")) {
-        mcpConfig.args = ["-w", workDir, ...existingArgs];
+        newArgs.push("-w", workDir);
+      }
+      
+      // Derive sudocodeDir from DB_PATH (DB is at <sudocodeDir>/cache.db) or use SUDOCODE_DIR env var
+      const sudocodeDir = process.env.SUDOCODE_DIR || (DB_PATH ? path.dirname(DB_PATH) : null);
+      
+      // Always add -d if not already specified by user and we can determine the sudocodeDir
+      // This ensures the MCP server knows the exact sudocode directory to use,
+      // regardless of whether it matches the default or not
+      if (!existingArgs.includes("-d") && !existingArgs.includes("--sudocode-dir") && sudocodeDir) {
+        newArgs.push("-d", sudocodeDir);
+      }
+      
+      if (newArgs.length > 0) {
+        mcpConfig.args = [...newArgs, ...existingArgs];
         console.log(
-          `[Worker:${WORKER_ID}] Injected -w ${workDir} into sudocode-mcp args`
+          `[Worker:${WORKER_ID}] Injected ${newArgs.join(" ")} into sudocode-mcp args`
         );
       }
     }

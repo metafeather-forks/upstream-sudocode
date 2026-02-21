@@ -53,7 +53,9 @@ export function createIssuesRouter(): Router {
         options.offset = parseInt(req.query.offset as string, 10);
       }
 
+      console.log(`[issues] GET /api/issues: projectId=${req.project!.id}, sudocodeDir=${req.project!.sudocodeDir}`);
       const issues = getAllIssues(req.project!.db, options);
+      console.log(`[issues] GET /api/issues: returned ${issues.length} issues`);
 
       res.json({
         success: true,

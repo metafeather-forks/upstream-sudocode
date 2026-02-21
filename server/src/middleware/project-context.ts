@@ -78,6 +78,9 @@ export function requireProject(projectManager: ProjectManager) {
       return;
     }
 
+    // Log project context injection
+    console.log(`[requireProject] ${req.method} ${req.path}: projectId=${id}, workingDir=${project.path}, sudocodeDir=${project.sudocodeDir}`);
+
     // Inject project context into request
     req.project = project;
 
