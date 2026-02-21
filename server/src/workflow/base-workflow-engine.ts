@@ -564,7 +564,7 @@ export abstract class BaseWorkflowEngine implements IWorkflowEngine {
 
   /**
    * Resolve a spec source to issue IDs.
-   * Finds all issues that implement the spec.
+   * Finds all issues that implement the spec, plus their blocking dependencies.
    */
   private resolveSpecSource(specId: string): string[] {
     // Find issues that have "implements" relationship to this spec
@@ -576,9 +576,51 @@ export abstract class BaseWorkflowEngine implements IWorkflowEngine {
     );
 
     // Filter to only issue sources
-    return relationships
+    const rootIssueIds = relationships
       .filter((rel) => rel.from_type === "issue")
       .map((rel) => rel.from_id);
+
+    // If no issues implement the spec, return empty
+    if (rootIssueIds.length === 0) {
+      return [];
+    }
+
+    // For each root issue, traverse blocking relationships to find all dependent issues
+    const allIssueIds = new Set<string>();
+
+    for (const rootIssueId of rootIssueIds) {
+      this.collectBlockingIssues(rootIssueId, allIssueIds);
+    }
+
+    return Array.from(allIssueIds);
+  }
+
+  /**
+   * Recursively collect all issues that block the given issue (including the issue itself).
+   * Traverses the "blocks" relationship graph.
+   */
+  private collectBlockingIssues(issueId: string, collected: Set<string>): void {
+    if (collected.has(issueId)) {
+      return;
+    }
+
+    collected.add(issueId);
+
+    // Find issues that block this issue
+    // "blocks" relationship: from_id blocks to_id
+    // So we need incoming relationships where to_id = issueId
+    const blocksRels = getIncomingRelationships(
+      this.db,
+      issueId,
+      "issue",
+      "blocks"
+    );
+
+    for (const rel of blocksRels) {
+      if (rel.from_type === "issue") {
+        this.collectBlockingIssues(rel.from_id, collected);
+      }
+    }
   }
 
   /**

@@ -202,7 +202,32 @@ export default function SpecDetailPage() {
 
 First review the spec content and the existing codebase. Ask clarifying questions if there are any ambiguities.
 
-Create actionable issues that implement its requirements. Each issue should be specific, well-scoped, and include clear acceptance criteria. Make sure to link each issue back to the spec and capture anly blocking dependencies.`
+Create actionable issues that implement its requirements. Each issue should be specific, well-scoped, and include clear acceptance criteria. Make sure to link each issue back to the spec and capture anly blocking dependencies.
+
+Then create a structured implementation plan:
+
+1. **Identify any root issues** that implement high-level sections of the spec:
+   - Use \`upsert_issue\` to create the root issue
+   - Use \`link\` with type="implements" to connect the root issue to the spec
+
+2. **Break down into sub-issues** with the root issue as their parent:
+   - Each sub-issue should be specific, well-scoped, and include clear acceptance criteria
+   - Set \`parent\` to the root issue ID when creating sub-issues
+
+3. **Create blocking relationships** using the \`link\` tool with type="blocks":
+   - If issue A must complete before issue B can start, create: A blocks B
+   - Ensure ALL sub-issues are connected in the dependency graph
+   - Sub-issues with no dependencies should block their dependent issues or the root issue
+   - The goal is that traversing "blocks" relationships from any leaf issue eventually reaches the root
+
+Example dependency structure:
+- i-sub1 (no deps) blocks i-sub2
+- i-sub2 blocks i-sub3  
+- i-sub3 blocks i-root
+- i-sub4 (parallel work) blocks i-root
+
+This ensures workflows can discover all issues by following the blocks relationship graph.
+`
   }, [spec])
 
   // Default prompt for editing the spec with an agent
