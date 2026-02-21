@@ -563,4 +563,213 @@ describe('ProjectRegistry', () => {
       registry.updateLastOpened('non-existent-id')
     })
   })
+
+  describe('SUDOCODE_DIR resolution in registerProject', () => {
+    let originalSudocodeDir: string | undefined
+
+    beforeEach(() => {
+      originalSudocodeDir = process.env.SUDOCODE_DIR
+    })
+
+    afterEach(() => {
+      if (originalSudocodeDir !== undefined) {
+        process.env.SUDOCODE_DIR = originalSudocodeDir
+      } else {
+        delete process.env.SUDOCODE_DIR
+      }
+    })
+
+    it('should use customSudocodeDir param when provided', async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const customDir = '/custom/location/.sudocode'
+      const projectInfo = registry.registerProject(projectPath, customDir)
+
+      expect(projectInfo.sudocodeDir).toBe(customDir)
+    })
+
+    it('should use SUDOCODE_DIR env var when no customSudocodeDir provided', async () => {
+      process.env.SUDOCODE_DIR = '/env/custom/.sudocode'
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const projectInfo = registry.registerProject(projectPath)
+
+      expect(projectInfo.sudocodeDir).toBe('/env/custom/.sudocode')
+    })
+
+    it('should default to <projectPath>/.sudocode when neither provided', async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const projectInfo = registry.registerProject(projectPath)
+
+      expect(projectInfo.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
+    })
+
+    it('should prioritize customSudocodeDir over SUDOCODE_DIR env var', async () => {
+      process.env.SUDOCODE_DIR = '/env/.sudocode'
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const customDir = '/custom/.sudocode'
+      const projectInfo = registry.registerProject(projectPath, customDir)
+
+      expect(projectInfo.sudocodeDir).toBe(customDir)
+    })
+
+    it('should update sudocodeDir for existing project when customSudocodeDir provided', async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      
+      // Register without custom dir first
+      const project1 = registry.registerProject(projectPath)
+      expect(project1.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
+
+      // Re-register with custom dir - should NOT overwrite (sudocodeDir is write-once)
+      const project2 = registry.registerProject(projectPath, '/new/custom/.sudocode')
+      expect(project2.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
+    })
+
+    it('should NOT update sudocodeDir for existing project when SUDOCODE_DIR env changes', async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      
+      // Register without env var
+      const project1 = registry.registerProject(projectPath)
+      expect(project1.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
+
+      // Set env var and re-register - should NOT overwrite (sudocodeDir is write-once)
+      process.env.SUDOCODE_DIR = '/env/changed/.sudocode'
+      const project2 = registry.registerProject(projectPath)
+      expect(project2.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
+    })
+
+    it('should NOT update sudocodeDir when re-registering without override or env var', async () => {
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      
+      // Register with env var
+      process.env.SUDOCODE_DIR = '/initial/.sudocode'
+      const project1 = registry.registerProject(projectPath)
+      expect(project1.sudocodeDir).toBe('/initial/.sudocode')
+
+      // Re-register without env var - should keep original (sudocodeDir is write-once)
+      delete process.env.SUDOCODE_DIR
+      const project2 = registry.registerProject(projectPath)
+      expect(project2.sudocodeDir).toBe('/initial/.sudocode')
+    })
+
+    it('should handle SUDOCODE_DIR pointing outside project directory', async () => {
+      process.env.SUDOCODE_DIR = '/completely/different/path/.sudocode'
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const projectInfo = registry.registerProject(projectPath)
+
+      expect(projectInfo.sudocodeDir).toBe('/completely/different/path/.sudocode')
+      expect(projectInfo.path).toBe(projectPath)
+      // sudocodeDir and project path are completely different
+      expect(projectInfo.sudocodeDir).not.toContain(projectInfo.path)
+    })
+
+    it('should handle paths with spaces in customSudocodeDir', async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+
+      const projectPath = '/Users/alex/repos/test-project'
+      const customDir = '/path/with spaces/.sudocode'
+      const projectInfo = registry.registerProject(projectPath, customDir)
+
+      expect(projectInfo.sudocodeDir).toBe(customDir)
+    })
+
+    it('should persist sudocodeDir through save/load cycle', async () => {
+      const testTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sudocode-sudodir-'))
+      const testConfigPath = path.join(testTempDir, 'projects.json')
+      const testRegistry = new ProjectRegistry(testConfigPath)
+
+      try {
+        await testRegistry.load()
+
+        const projectPath = '/Users/alex/repos/test-project'
+        const customDir = '/custom/.sudocode'
+        testRegistry.registerProject(projectPath, customDir)
+
+        await testRegistry.save()
+
+        // Load in new instance
+        const registry2 = new ProjectRegistry(testConfigPath)
+        await registry2.load()
+
+        const projects = registry2.getAllProjects()
+        expect(projects).toHaveLength(1)
+        expect(projects[0].sudocodeDir).toBe(customDir)
+      } finally {
+        if (fs.existsSync(testTempDir)) {
+          fs.rmSync(testTempDir, { recursive: true, force: true })
+        }
+      }
+    })
+  })
+
+  describe('getSudocodeDir', () => {
+    beforeEach(async () => {
+      delete process.env.SUDOCODE_DIR
+      await registry.load()
+    })
+
+    afterEach(() => {
+      delete process.env.SUDOCODE_DIR
+    })
+
+    it('should return stored sudocodeDir for registered project', async () => {
+      const projectPath = '/Users/alex/repos/test-project'
+      const customDir = '/custom/.sudocode'
+      
+      // Register with custom dir
+      registry.registerProject(projectPath, customDir)
+      
+      // getSudocodeDir should return the stored value
+      expect(registry.getSudocodeDir(projectPath)).toBe(customDir)
+    })
+
+    it('should return stored sudocodeDir even when SUDOCODE_DIR env var is set', async () => {
+      const projectPath = '/Users/alex/repos/test-project'
+      const customDir = '/custom/.sudocode'
+      
+      // Register with custom dir
+      registry.registerProject(projectPath, customDir)
+      
+      // Set env var to something different
+      process.env.SUDOCODE_DIR = '/env-var/.sudocode'
+      
+      // getSudocodeDir should still return the stored value (stored takes precedence)
+      expect(registry.getSudocodeDir(projectPath)).toBe(customDir)
+    })
+
+    it('should return SUDOCODE_DIR env var for unregistered project', async () => {
+      const projectPath = '/Users/alex/repos/unregistered-project'
+      
+      process.env.SUDOCODE_DIR = '/env-var/.sudocode'
+      
+      // Project is not registered, so env var should be used
+      expect(registry.getSudocodeDir(projectPath)).toBe('/env-var/.sudocode')
+    })
+
+    it('should return default path for unregistered project without env var', async () => {
+      const projectPath = '/Users/alex/repos/unregistered-project'
+      
+      // No env var, not registered - should return default
+      expect(registry.getSudocodeDir(projectPath)).toBe(path.join(projectPath, '.sudocode'))
+    })
+  })
 })

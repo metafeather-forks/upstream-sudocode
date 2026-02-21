@@ -18,6 +18,8 @@ vi.mock("../../src/client.js", () => ({
   SudocodeClient: vi.fn().mockImplementation((config) => ({
     workingDir: config?.workingDir || "/test/working/dir",
     exec: vi.fn(),
+    getActiveWorkDir: vi.fn().mockResolvedValue(config?.workingDir || "/test/working/dir"),
+    getSudocodeDir: vi.fn().mockResolvedValue((config?.workingDir || "/test/working/dir") + "/.sudocode"),
   })),
 }));
 
@@ -159,6 +161,27 @@ describe("SudocodeMCPServer", () => {
         sudocodeExists: true,
         message: "Failed to import: Import failed",
       });
+    });
+
+    it("should use custom sudocodeDir from client.getSudocodeDir()", async () => {
+      const customSudocodeDir = "/custom/path/.sudocode";
+      
+      mockExistsSync.mockImplementation((p: string) => {
+        // Check that paths are correctly constructed from custom sudocodeDir
+        if (p === customSudocodeDir) return true;
+        if (p === `${customSudocodeDir}/cache.db`) return true;
+        return false;
+      });
+
+      const server = new SudocodeMCPServer({ sudocodeDir: customSudocodeDir });
+      
+      // Override the mock's getSudocodeDir to return custom path
+      (server as any).client.getSudocodeDir = vi.fn().mockResolvedValue(customSudocodeDir);
+      
+      const result = await (server as any).checkForInit();
+
+      expect(result.initialized).toBe(true);
+      expect((server as any).client.getSudocodeDir).toHaveBeenCalled();
     });
   });
 

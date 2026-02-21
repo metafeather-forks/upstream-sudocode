@@ -90,17 +90,21 @@ describe("ProjectManager", () => {
       }
     });
 
-    it("should reject project without cache.db", async () => {
+    it("should auto-create cache.db when missing but .sudocode exists", async () => {
       const projectPath = path.join(tempDir, "no-cache-db");
       const sudocodeDir = path.join(projectPath, ".sudocode");
       fs.mkdirSync(sudocodeDir, { recursive: true });
 
       const result = await manager.openProject(projectPath);
 
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.error.type).toBe("INVALID_PROJECT");
-        expect(result.error.message).toContain("cache.db");
+      // Should succeed by auto-creating the database
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toBeDefined();
+        expect(result.value.path).toBe(projectPath);
+        expect(result.value.db).toBeDefined();
+        // Verify cache.db was created
+        expect(fs.existsSync(path.join(sudocodeDir, "cache.db"))).toBe(true);
       }
     });
 
