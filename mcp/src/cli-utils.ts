@@ -2,37 +2,11 @@
  * CLI utility functions for sudocode MCP Server
  * 
  * These functions are extracted for testability.
+ * 
+ * Note: generateProjectId has been moved to @sudocode-ai/cli/project-discovery
  */
 
-import { createHash } from "crypto";
-import { basename, resolve } from "path";
 import { SudocodeMCPServerConfig } from "./types.js";
-
-/**
- * Generate a deterministic project ID from a path.
- * Uses the same algorithm as the server's ProjectRegistry.
- * Format: <repo-name>-<8-char-hash>
- */
-export function generateProjectId(projectPath: string): string {
-  // Resolve to absolute path
-  const absolutePath = resolve(projectPath);
-
-  // Extract repo name from path
-  const repoName = basename(absolutePath);
-
-  // Create URL-safe version of repo name
-  const safeName = repoName
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") // Remove leading/trailing dashes
-    .slice(0, 32);
-
-  // Generate short hash for uniqueness
-  const hash = createHash("sha256").update(absolutePath).digest("hex").slice(0, 8);
-
-  return `${safeName}-${hash}`;
-}
 
 /**
  * Fix unexpanded ${workspaceFolder} or other VS Code variables.

@@ -12,10 +12,13 @@ import {
   getMissingServerUrlScopes,
 } from "./scopes.js";
 import {
-  generateProjectId,
   fixUnexpandedVariables,
   parseArgs,
 } from "./cli-utils.js";
+import {
+  discoverProject,
+  generateProjectId,
+} from "@sudocode-ai/cli/project-discovery";
 
 function showHelp(): void {
   console.log(`
@@ -85,14 +88,29 @@ function validateConfig(config: SudocodeMCPServerConfig): void {
   // This ensures both workingDir and projectId are consistent
   config.workingDir = fixUnexpandedVariables(config.workingDir);
 
+  // Use project discovery to resolve projectId and sudocodeDir
+  const effectiveWorkDir = config.workingDir || process.cwd();
+  const sudocodeDirOverride = config.sudocodeDir || process.env.SUDOCODE_DIR;
+  
+  const discovery = discoverProject(effectiveWorkDir, undefined, sudocodeDirOverride);
+  
   // Auto-discover project ID from working directory if not specified
-  if (!config.projectId && config.workingDir) {
-    config.projectId = generateProjectId(config.workingDir);
-    console.error(`[mcp] Auto-discovered project ID: ${config.projectId}`);
-  } else if (!config.projectId) {
-    // Try current working directory as fallback
-    config.projectId = generateProjectId(process.cwd());
-    console.error(`[mcp] Auto-discovered project ID from cwd: ${config.projectId}`);
+  if (!config.projectId) {
+    config.projectId = discovery.projectId;
+    console.error(`[mcp] Discovered project: id=${discovery.projectId}, source=${discovery.source}`);
+  }
+  
+  // Set sudocodeDir if not explicitly provided
+  if (!config.sudocodeDir) {
+    config.sudocodeDir = discovery.sudocodeDir;
+    if (process.env.DEBUG_MCP) {
+      console.error(`[mcp] Using sudocodeDir: ${discovery.sudocodeDir}`);
+    }
+  }
+  
+  // Log warning if any
+  if (discovery.warning) {
+    console.error(`[mcp] Warning: ${discovery.warning}`);
   }
 
   try {

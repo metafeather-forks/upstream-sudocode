@@ -3,7 +3,6 @@
  */
 
 import chalk from "chalk";
-import * as crypto from "crypto";
 import * as path from "path";
 import type Database from "better-sqlite3";
 import {
@@ -15,6 +14,7 @@ import {
   PROJECT_CONFIG_FILE,
   LOCAL_CONFIG_FILE,
 } from "../config.js";
+import { generateProjectId } from "../project-discovery.js";
 import type { StorageMode, Config, ProjectConfig, LocalConfig } from "@sudocode-ai/types";
 
 export interface CommandContext {
@@ -222,38 +222,6 @@ export async function handleConfigShow(
     console.log(chalk.gray("  - JSONL files are derived (exported for git tracking)"));
     console.log(chalk.gray("  - Deleting .md files WILL delete entities"));
   }
-}
-
-/**
- * Generate a deterministic, human-readable project ID from path.
- * Format: <repo-name>-<8-char-hash>
- * Example: sudocode-a1b2c3d4
- *
- * Uses the same algorithm as server's ProjectRegistry and MCP.
- */
-export function generateProjectId(projectPath: string): string {
-  // Resolve to absolute path
-  const absolutePath = path.resolve(projectPath);
-
-  // Extract repo name from path
-  const repoName = path.basename(absolutePath);
-
-  // Create URL-safe version of repo name
-  const safeName = repoName
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") // Remove leading/trailing dashes
-    .slice(0, 32);
-
-  // Generate short hash for uniqueness
-  const hash = crypto
-    .createHash("sha256")
-    .update(absolutePath)
-    .digest("hex")
-    .slice(0, 8);
-
-  return `${safeName}-${hash}`;
 }
 
 /**

@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { parseArgs, generateProjectId, fixUnexpandedVariables } from "../../src/cli-utils.js";
+import { parseArgs, fixUnexpandedVariables } from "../../src/cli-utils.js";
+import { generateProjectId } from "@sudocode-ai/cli/project-discovery";
 
 describe("cli-utils", () => {
   describe("parseArgs", () => {

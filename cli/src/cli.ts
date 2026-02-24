@@ -10,6 +10,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { initDatabase } from "./db.js";
 import type Database from "better-sqlite3";
+import { discoverProject, type DiscoveryResult } from "./project-discovery.js";
 
 // Import command handlers
 import {
@@ -80,13 +81,17 @@ let db: Database.Database | null = null;
 let dbPath: string = "";
 let outputDir: string = ".sudocode";
 let jsonOutput: boolean = false;
+let workingDir: string = "";
+let discoveryResult: DiscoveryResult | null = null;
 
 /**
- * Find database path
- * Searches for .sudocode/cache.db in current directory and parent directories
+ * Find database path starting from a given directory.
+ * Searches for .sudocode/cache.db in the directory and parent directories.
+ *
+ * @param startDir - Directory to start searching from (defaults to cwd)
  */
-function findDatabasePath(): string | null {
-  let currentDir = process.cwd();
+function findDatabasePath(startDir?: string): string | null {
+  let currentDir = startDir || process.cwd();
   const root = path.parse(currentDir).root;
 
   while (currentDir !== root) {
@@ -101,21 +106,71 @@ function findDatabasePath(): string | null {
 }
 
 /**
- * Initialize database connection
+ * Resolve the working directory and sudocode directory using project discovery.
+ *
+ * Resolution priority:
+ * 1. --db flag (explicit database path)
+ * 2. --working-dir flag (search from that directory)
+ * 3. SUDOCODE_DIR env var (explicit sudocode directory)
+ * 4. Project discovery from current working directory
+ * 5. Walk up from cwd looking for .sudocode/cache.db
+ * 6. Default to cwd/.sudocode
+ *
+ * @param opts - Command options with db, workingDir flags
  */
-function initDB() {
-  if (!dbPath) {
-    const found = findDatabasePath();
-    if (found) {
-      dbPath = found;
-      outputDir = path.dirname(found);
-    } else {
-      // Default location
-      outputDir = path.join(process.cwd(), ".sudocode");
-      dbPath = path.join(outputDir, "cache.db");
-    }
+function resolveDirectories(opts: { db?: string; workingDir?: string }): void {
+  // 1. If explicit --db path provided, use it directly
+  if (opts.db) {
+    dbPath = opts.db;
+    outputDir = path.dirname(dbPath);
+    return;
   }
 
+  // Determine the effective working directory
+  const effectiveWorkDir = opts.workingDir || process.cwd();
+  workingDir = path.resolve(effectiveWorkDir);
+
+  // 2. Check SUDOCODE_DIR environment variable
+  const sudocodeDirEnv = process.env.SUDOCODE_DIR;
+
+  // 3. Try project discovery
+  discoveryResult = discoverProject(workingDir, undefined, sudocodeDirEnv);
+
+  if (discoveryResult.source !== "generated") {
+    // Found a registered project
+    outputDir = discoveryResult.sudocodeDir;
+    dbPath = path.join(outputDir, "cache.db");
+
+    if (process.env.DEBUG_CLI) {
+      console.error(
+        `[cli] Discovered project: id=${discoveryResult.projectId}, source=${discoveryResult.source}`
+      );
+    }
+    return;
+  }
+
+  // 4. Walk up from working directory looking for .sudocode/cache.db
+  const found = findDatabasePath(workingDir);
+  if (found) {
+    dbPath = found;
+    outputDir = path.dirname(found);
+    return;
+  }
+
+  // 5. Default to working directory/.sudocode
+  outputDir = path.join(workingDir, ".sudocode");
+  dbPath = path.join(outputDir, "cache.db");
+
+  if (discoveryResult.warning && process.env.DEBUG_CLI) {
+    console.error(`[cli] Warning: ${discoveryResult.warning}`);
+  }
+}
+
+/**
+ * Initialize database connection.
+ * Assumes resolveDirectories() has already been called to set dbPath and outputDir.
+ */
+function initDB() {
   try {
     // Ensure the database directory exists before opening/creating the database
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -146,15 +201,17 @@ program
   .description("sudocode - git-native agentic context management")
   .version(VERSION)
   .option("--db <path>", "Database path (default: auto-discover)")
+  .option("-w, --working-dir <path>", "Working directory for project discovery")
   .option("--json", "Output in JSON format")
   .hook("preAction", (thisCommand: Command) => {
     // Get global options
     const opts = thisCommand.optsWithGlobals();
-    if (opts.db) dbPath = opts.db;
     if (opts.json) jsonOutput = true;
 
     // Skip DB init for init command
     if (thisCommand.name() !== "init") {
+      // Resolve directories using project discovery
+      resolveDirectories({ db: opts.db, workingDir: opts.workingDir });
       initDB();
     }
   })

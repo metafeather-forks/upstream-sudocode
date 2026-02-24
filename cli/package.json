@@ -8,6 +8,7 @@
     ".": "./dist/index.js",
     "./update-checker": "./dist/update-checker.js",
     "./install-source": "./dist/install-source.js",
+    "./project-discovery": "./dist/project-discovery.js",
     "./dist/*": "./dist/*"
   },
   "bin": {
