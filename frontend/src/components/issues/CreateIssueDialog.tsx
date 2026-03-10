@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectRoutes } from '@/hooks/useProjectRoutes'
+import { useAgents } from '@/hooks/useAgents'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -8,11 +9,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { AlertCircle, Sparkles, FileText } from 'lucide-react'
 import { IssueEditor } from './IssueEditor'
+import { AgentSelector } from '@/components/executions/AgentSelector'
 import { executionsApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { Issue, IssueStatus } from '@sudocode-ai/types'
 
 const CREATE_MODE_STORAGE_KEY = 'sudocode:createIssue:mode'
+const COWRITE_AGENT_TYPE_KEY = 'sudocode:cowrite:agentType'
+const DEFAULT_AGENT_TYPE = 'opencode'
 
 interface CreateIssueDialogProps {
   isOpen: boolean
@@ -31,6 +35,7 @@ export function CreateIssueDialog({
 }: CreateIssueDialogProps) {
   const navigate = useNavigate()
   const { paths } = useProjectRoutes()
+  const { agents, loading: agentsLoading } = useAgents()
   const [hasChanges, setHasChanges] = useState(false)
   const [activeTab, setActiveTab] = useState<'manual' | 'cowrite'>(() => {
     const stored = localStorage.getItem(CREATE_MODE_STORAGE_KEY)
@@ -46,6 +51,22 @@ export function CreateIssueDialog({
   const [cowriteDescription, setCowriteDescription] = useState('')
   const [isStartingCowrite, setIsStartingCowrite] = useState(false)
   const [cowriteError, setCowriteError] = useState<string | null>(null)
+  const [selectedAgentType, setSelectedAgentType] = useState<string>(() => {
+    try {
+      const savedAgentType = localStorage.getItem(COWRITE_AGENT_TYPE_KEY)
+      if (savedAgentType) {
+        return savedAgentType
+      }
+    } catch (error) {
+      console.warn('Failed to load saved agent type:', error)
+    }
+    return DEFAULT_AGENT_TYPE
+  })
+
+  // Save selected agent type to localStorage
+  useEffect(() => {
+    localStorage.setItem(COWRITE_AGENT_TYPE_KEY, selectedAgentType)
+  }, [selectedAgentType])
 
   const handleSave = (data: Partial<Issue>) => {
     onCreate(data)
@@ -96,7 +117,7 @@ After creating the issue, summarize what you created.`
           mode: 'local',
         },
         prompt,
-        agentType: 'copilot',
+        agentType: selectedAgentType,
       })
 
       toast.success('Started co-writing issue')
@@ -164,6 +185,18 @@ After creating the issue, summarize what you created.`
                   <p className="text-sm text-destructive">{cowriteError}</p>
                 </div>
               </div>
+            )}
+
+            {/* Agent Selector */}
+            {agents && agents.length > 0 && (
+              <AgentSelector
+                agents={agents}
+                selectedAgent={selectedAgentType}
+                onChange={setSelectedAgentType}
+                disabled={isStartingCowrite || agentsLoading}
+                label="AI Agent"
+                description="Select the AI coding agent to help draft the issue"
+              />
             )}
 
             <div className="space-y-2">

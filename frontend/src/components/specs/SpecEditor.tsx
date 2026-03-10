@@ -2,12 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpecs } from '@/hooks/useSpecs'
 import { useProjectRoutes } from '@/hooks/useProjectRoutes'
+import { useAgents } from '@/hooks/useAgents'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { TiptapEditor } from '@/components/specs/TiptapEditor'
+import { AgentSelector } from '@/components/executions/AgentSelector'
 import { FileText, Code2, Sparkles, AlertCircle } from 'lucide-react'
 import { executionsApi } from '@/lib/api'
 import { toast } from 'sonner'
@@ -15,6 +17,8 @@ import type { Spec, CreateSpecRequest } from '@/types/api'
 
 const VIEW_MODE_STORAGE_KEY = 'sudocode:specEditor:viewMode'
 const CREATE_MODE_STORAGE_KEY = 'sudocode:createSpec:mode'
+const COWRITE_AGENT_TYPE_KEY = 'sudocode:cowrite:agentType'
+const DEFAULT_AGENT_TYPE = 'opencode'
 
 interface SpecEditorProps {
   spec?: Spec
@@ -26,6 +30,7 @@ export function SpecEditor({ spec, onSave, onCancel }: SpecEditorProps) {
   const navigate = useNavigate()
   const { paths } = useProjectRoutes()
   const { createSpecAsync, updateSpecAsync, isCreating } = useSpecs()
+  const { agents, loading: agentsLoading } = useAgents()
 
   // Mode: 'manual' for editing, 'cowrite' for agent-assisted
   const [mode, setMode] = useState<'manual' | 'cowrite'>(() => {
@@ -48,6 +53,17 @@ export function SpecEditor({ spec, onSave, onCancel }: SpecEditorProps) {
   const [cowriteDescription, setCowriteDescription] = useState('')
   const [isStartingCowrite, setIsStartingCowrite] = useState(false)
   const [cowriteError, setCowriteError] = useState<string | null>(null)
+  const [selectedAgentType, setSelectedAgentType] = useState<string>(() => {
+    try {
+      const savedAgentType = localStorage.getItem(COWRITE_AGENT_TYPE_KEY)
+      if (savedAgentType) {
+        return savedAgentType
+      }
+    } catch (error) {
+      console.warn('Failed to load saved agent type:', error)
+    }
+    return DEFAULT_AGENT_TYPE
+  })
 
   // Save view mode preference to localStorage
   useEffect(() => {
@@ -58,6 +74,11 @@ export function SpecEditor({ spec, onSave, onCancel }: SpecEditorProps) {
   useEffect(() => {
     localStorage.setItem(CREATE_MODE_STORAGE_KEY, mode)
   }, [mode])
+
+  // Save selected agent type to localStorage
+  useEffect(() => {
+    localStorage.setItem(COWRITE_AGENT_TYPE_KEY, selectedAgentType)
+  }, [selectedAgentType])
 
   // Auto-resize textarea to fit content in markdown mode
   useEffect(() => {
@@ -129,7 +150,7 @@ After creating the spec, summarize what you created.`
           mode: 'local',
         },
         prompt,
-        agentType: 'copilot',
+        agentType: selectedAgentType,
       })
 
       toast.success('Started co-writing spec')
@@ -208,6 +229,18 @@ After creating the spec, summarize what you created.`
                     <p className="text-sm text-destructive">{cowriteError}</p>
                   </div>
                 </div>
+              )}
+
+              {/* Agent Selector */}
+              {agents && agents.length > 0 && (
+                <AgentSelector
+                  agents={agents}
+                  selectedAgent={selectedAgentType}
+                  onChange={setSelectedAgentType}
+                  disabled={isStartingCowrite || agentsLoading}
+                  label="AI Agent"
+                  description="Select the AI coding agent to help draft the spec"
+                />
               )}
 
               <div className="space-y-2">
