@@ -131,6 +131,13 @@ export type WorkflowEngineType = "sequential" | "orchestrator";
 export type WorkflowParallelism = "sequential" | "parallel";
 
 /**
+ * Workflow execution mode for step executions
+ * - local: Execute steps in the local repository directory (default)
+ * - worktree: Execute steps in an isolated git worktree
+ */
+export type WorkflowExecutionMode = "local" | "worktree";
+
+/**
  * Failure handling strategy
  */
 export type WorkflowFailureStrategy =
@@ -188,6 +195,14 @@ export interface WorkflowConfig {
    * @default "claude-code"
    */
   defaultAgentType: AgentType;
+
+  /**
+   * Execution mode for workflow step executions
+   * - local: Execute steps in the local repository directory (default)
+   * - worktree: Execute steps in an isolated git worktree
+   * @default "local"
+   */
+  executionMode?: WorkflowExecutionMode;
 
   // === Orchestrator Engine Options ===
 

@@ -104,6 +104,7 @@ export const DEFAULT_WORKFLOW_CONFIG: Readonly<WorkflowConfig> = {
   onFailure: "pause",
   autoCommitAfterStep: true,
   defaultAgentType: "opencode",
+  executionMode: "local",
 
   // Orchestrator engine options
   orchestratorAgentType: undefined,

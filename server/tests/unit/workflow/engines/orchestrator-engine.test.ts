@@ -248,8 +248,8 @@ describe("OrchestratorWorkflowEngine", () => {
       expect(executionService.createExecution).toHaveBeenCalledWith(
         null, // No issue for orchestrator
         expect.objectContaining({
-          mode: "worktree",
-          reuseWorktreePath: expect.any(String),
+          mode: "local",
+          reuseWorktreePath: undefined,
           mcpServers: expect.objectContaining({
             "sudocode-workflow": expect.any(Object),
           }),

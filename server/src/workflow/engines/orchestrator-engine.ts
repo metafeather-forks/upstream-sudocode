@@ -658,11 +658,12 @@ export class OrchestratorWorkflowEngine extends BaseWorkflowEngine {
     const agentType = workflow.config.orchestratorAgentType ?? "opencode";
 
     // Log the full config being passed to createExecution
-    // Orchestrator runs in the workflow's worktree so it can see step changes
+    // Orchestrator runs using the workflow's configured execution mode
+    const executionMode = workflow.config.executionMode || "local";
     const fullConfig = {
-      mode: "worktree" as const,
+      mode: executionMode as "local" | "worktree",
       baseBranch: workflow.baseBranch,
-      reuseWorktreePath: workflow.worktreePath,
+      reuseWorktreePath: executionMode === "worktree" ? workflow.worktreePath : undefined,
       ...agentConfig,
     };
     console.log(

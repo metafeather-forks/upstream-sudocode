@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { FileText, ListTodo, Target, MessageSquare, ChevronDown, Play, Loader2 } from 'lucide-react'
+import { FileText, ListTodo, Target, MessageSquare, ChevronDown, Plus, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ import type {
   WorkflowParallelism,
   WorkflowFailureStrategy,
   WorkflowAutonomyLevel,
+  WorkflowExecutionMode,
 } from '@/types/workflow'
 import { DEFAULT_WORKFLOW_CONFIG } from '@/types/workflow'
 
@@ -63,6 +64,7 @@ interface PersistedWorkflowSettings {
   advancedOpen: boolean
   baseBranch?: string
   reuseWorktreePath?: string
+  executionMode: WorkflowExecutionMode
 }
 
 const DEFAULT_PERSISTED_SETTINGS: PersistedWorkflowSettings = {
@@ -72,6 +74,7 @@ const DEFAULT_PERSISTED_SETTINGS: PersistedWorkflowSettings = {
   advancedOpen: false,
   baseBranch: undefined,
   reuseWorktreePath: undefined,
+  executionMode: DEFAULT_WORKFLOW_CONFIG.executionMode || 'local',
 }
 
 /**
@@ -101,6 +104,15 @@ function isValidPersistedSettings(value: unknown): value is PersistedWorkflowSet
   if (settings.baseBranch !== undefined && typeof settings.baseBranch !== 'string') return false
   if (settings.reuseWorktreePath !== undefined && typeof settings.reuseWorktreePath !== 'string') return false
 
+  // Validate executionMode (optional for backwards compatibility, defaults to 'local')
+  const validExecutionModes = ['local', 'worktree']
+  if (
+    settings.executionMode !== undefined &&
+    (typeof settings.executionMode !== 'string' || !validExecutionModes.includes(settings.executionMode))
+  ) {
+    return false
+  }
+
   return true
 }
 
@@ -114,7 +126,12 @@ function loadPersistedSettings(): PersistedWorkflowSettings {
 
     const parsed = JSON.parse(saved)
     if (isValidPersistedSettings(parsed)) {
-      return parsed
+      // Merge with defaults to handle missing fields from older versions
+      return {
+        ...DEFAULT_PERSISTED_SETTINGS,
+        ...parsed,
+        executionMode: parsed.executionMode || DEFAULT_PERSISTED_SETTINGS.executionMode,
+      }
     }
   } catch (error) {
     console.warn('Failed to load workflow settings from localStorage:', error)
@@ -170,6 +187,7 @@ interface FormState {
   onFailure: WorkflowFailureStrategy
   autoCommit: boolean
   agentType: string
+  executionMode: WorkflowExecutionMode
   // Orchestrator-specific options
   autonomyLevel: WorkflowAutonomyLevel
   orchestratorModel: string
@@ -247,6 +265,7 @@ export function CreateWorkflowDialog({
     onFailure: persistedSettings.onFailure,
     autoCommit: persistedSettings.autoCommit,
     agentType: persistedSettings.agentType,
+    executionMode: persistedSettings.executionMode,
     // Orchestrator-specific options
     autonomyLevel: DEFAULT_WORKFLOW_CONFIG.autonomyLevel,
     orchestratorModel: '',
@@ -366,6 +385,7 @@ export function CreateWorkflowDialog({
       onFailure: form.onFailure,
       autoCommitAfterStep: form.autoCommit,
       defaultAgentType: form.agentType as WorkflowConfig['defaultAgentType'],
+      executionMode: form.executionMode,
       baseBranch: form.baseBranch.trim() || undefined,
       createBaseBranch: form.createBaseBranch || undefined,
       reuseWorktreePath: form.reuseWorktreePath,
@@ -401,6 +421,7 @@ export function CreateWorkflowDialog({
       advancedOpen,
       baseBranch: form.baseBranch || undefined,
       reuseWorktreePath: form.reuseWorktreePath,
+      executionMode: form.executionMode,
     })
 
     await onCreate?.(options)
@@ -592,7 +613,34 @@ export function CreateWorkflowDialog({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 border-t px-4 py-4">
-              {/* Execution Mode - parallel disabled for now, only sequential supported */}
+              {/* Execution Mode */}
+              <div className="space-y-2">
+                <Label>Execution Mode</Label>
+                <RadioGroup
+                  value={form.executionMode}
+                  onValueChange={(v) => updateForm('executionMode', v as WorkflowExecutionMode)}
+                  className="flex flex-col gap-2"
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <RadioGroupItem value="local" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium">Local (recommended)</span>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Execute steps in the local repository directory
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <RadioGroupItem value="worktree" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium">Isolated Worktree</span>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Execute steps in an isolated git worktree
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
 
               {/* On Failure */}
               <div className="space-y-2">
@@ -659,8 +707,8 @@ export function CreateWorkflowDialog({
               </>
             ) : (
               <>
-                <Play className="mr-2 h-4 w-4" />
-                Create & Run
+                <Plus className="mr-2 h-4 w-4" />
+                Create
               </>
             )}
           </Button>

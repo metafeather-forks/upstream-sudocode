@@ -18,6 +18,7 @@ import type {
   WorkflowParallelism,
   WorkflowFailureStrategy,
   WorkflowAutonomyLevel,
+  WorkflowExecutionMode,
   WorkflowEvent,
   WorkflowEventType,
   CreateWorkflowOptions,
@@ -45,6 +46,7 @@ export type {
   WorkflowParallelism,
   WorkflowFailureStrategy,
   WorkflowAutonomyLevel,
+  WorkflowExecutionMode,
   WorkflowEvent,
   WorkflowEventType,
   CreateWorkflowOptions,
@@ -224,5 +226,6 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   onFailure: 'pause',
   autoCommitAfterStep: true,
   defaultAgentType: 'copilot',
+  executionMode: 'local',
   autonomyLevel: 'human_in_the_loop',
 }

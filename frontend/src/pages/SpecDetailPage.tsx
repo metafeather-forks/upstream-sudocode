@@ -764,7 +764,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                       onClick={handleRunAsWorkflow}
                       disabled={isCreatingWorkflow || openImplementingIssuesCount === 0}
                     >
-                      <span className="hidden sm:inline">Run Workflow</span>
+                      <span className="hidden sm:inline">Add Workflow</span>
                       <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
                         {openImplementingIssuesCount}
                       </Badge>
@@ -772,8 +772,8 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                   </TooltipTrigger>
                   <TooltipContent>
                     {openImplementingIssuesCount === 0
-                      ? 'No implementing issues to run'
-                      : `Run ${openImplementingIssuesCount} implementing issue${openImplementingIssuesCount > 1 ? 's' : ''} as workflow`}
+                      ? 'No implementing issues to add'
+                      : `Add ${openImplementingIssuesCount} implementing issue${openImplementingIssuesCount > 1 ? 's' : ''} as workflow`}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
