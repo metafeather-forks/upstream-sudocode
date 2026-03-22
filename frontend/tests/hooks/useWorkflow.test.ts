@@ -166,6 +166,24 @@ describe('useWorkflow', () => {
   })
 
   describe('query key with projectId', () => {
+    it('should fetch all issues without archived filter for workflow resolution', async () => {
+      vi.mocked(workflowsApi.get).mockResolvedValue(mockWorkflow)
+      vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useWorkflow('wf-001'), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      // Verify issuesApi.getAll is called WITHOUT any archived parameter
+      // This ensures workflows can resolve archived issues referenced in steps
+      expect(issuesApi.getAll).toHaveBeenCalledWith()
+      expect(issuesApi.getAll).toHaveBeenCalledTimes(1)
+    })
+
     it('should use workflow-issues query key with currentProjectId', async () => {
       vi.mocked(workflowsApi.get).mockResolvedValue(mockWorkflow)
       vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)

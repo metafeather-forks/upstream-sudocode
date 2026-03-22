@@ -136,6 +136,21 @@ describe('useIssues', () => {
 
       expect(issuesApi.getAll).toHaveBeenCalledWith(false)
     })
+
+    it('should pass archived=false when useIssues(undefined) is called explicitly', async () => {
+      vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues(undefined), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      // When undefined is explicitly passed, it should default to false
+      expect(issuesApi.getAll).toHaveBeenCalledWith(false)
+    })
   })
 
   it('should fetch and return issues', async () => {
