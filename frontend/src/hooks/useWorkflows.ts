@@ -149,7 +149,8 @@ export function useWorkflows(params?: ListWorkflowsParams) {
 
 export function useWorkflow(id: string | undefined) {
   const queryClient = useQueryClient()
-  const { connected, subscribe, addMessageHandler, removeMessageHandler } = useWebSocketContext()
+  const { currentProjectId } = useProject()
+  const { connected, subscribe, unsubscribe, addMessageHandler, removeMessageHandler } = useWebSocketContext()
 
   // Fetch the workflow
   const workflowQuery = useQuery({
@@ -165,44 +166,59 @@ export function useWorkflow(id: string | undefined) {
     const handleMessage = (message: WebSocketMessage) => {
       // Check if the message is for this workflow
       const messageWorkflowId = message.data?.id || message.data?.workflowId
-      if (messageWorkflowId !== id) return
 
-      // Handle workflow-specific events
+      // Handle workflow-specific events (only for this workflow)
       if (
-        message.type === 'workflow_updated' ||
-        message.type === 'workflow_started' ||
-        message.type === 'workflow_paused' ||
-        message.type === 'workflow_resumed' ||
-        message.type === 'workflow_completed' ||
-        message.type === 'workflow_failed' ||
-        message.type === 'workflow_cancelled' ||
-        message.type === 'workflow_step_started' ||
-        message.type === 'workflow_step_completed' ||
-        message.type === 'workflow_step_failed' ||
-        message.type === 'workflow_step_skipped'
+        messageWorkflowId === id &&
+        (message.type === 'workflow_updated' ||
+          message.type === 'workflow_started' ||
+          message.type === 'workflow_paused' ||
+          message.type === 'workflow_resumed' ||
+          message.type === 'workflow_completed' ||
+          message.type === 'workflow_failed' ||
+          message.type === 'workflow_cancelled' ||
+          message.type === 'workflow_step_started' ||
+          message.type === 'workflow_step_completed' ||
+          message.type === 'workflow_step_failed' ||
+          message.type === 'workflow_step_skipped')
       ) {
         // Invalidate this workflow's query
         queryClient.invalidateQueries({ queryKey: workflowKeys.detail(id) })
+      }
+
+      // Handle issue events - invalidate workflow-issues cache
+      // This ensures workflow view updates when issues are archived/unarchived elsewhere
+      if (
+        message.type === 'issue_created' ||
+        message.type === 'issue_updated' ||
+        message.type === 'issue_deleted'
+      ) {
+        queryClient.invalidateQueries({ queryKey: ['workflow-issues', currentProjectId] })
       }
     }
 
     const handlerId = `workflow-detail-${id}`
     addMessageHandler(handlerId, handleMessage)
 
-    // Subscribe to workflow updates (needed for WebSocket server to send messages)
+    // Subscribe to both workflow and issue updates
     if (connected) {
       subscribe('workflow')
+      subscribe('issue')
     }
 
-    return () => removeMessageHandler(handlerId)
-  }, [id, connected, subscribe, queryClient, addMessageHandler, removeMessageHandler])
+    return () => {
+      removeMessageHandler(handlerId)
+      unsubscribe('issue')
+    }
+  }, [id, connected, subscribe, unsubscribe, queryClient, currentProjectId, addMessageHandler, removeMessageHandler])
 
   // Get all issues (we'll filter to the ones we need)
-  // Using the cached issues list to avoid N+1 queries
+  // Using a workflow-specific key to avoid collision with useIssues() invalidation
+  // After Phase 1 (server change), issuesApi.getAll() returns ALL issues including archived
   const issuesQuery = useQuery({
-    queryKey: ['issues'],
+    queryKey: ['workflow-issues', currentProjectId],
     queryFn: () => issuesApi.getAll(),
-    enabled: !!workflowQuery.data,
+    enabled: !!workflowQuery.data && !!currentProjectId,
     staleTime: 60_000, // 1 minute - issues don't change as frequently
   })
 
