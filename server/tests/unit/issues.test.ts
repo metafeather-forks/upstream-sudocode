@@ -385,6 +385,108 @@ describe("Issues API", () => {
     });
   });
 
+  describe("GET /api/issues - archived filtering", () => {
+    let archivedIssueId: string;
+    let nonArchivedIssueId: string;
+
+    beforeAll(async () => {
+      // Create an archived issue
+      const archivedResponse = await request(app)
+        .post("/api/issues")
+        .set("X-Project-ID", projectId)
+        .send({ title: "Archived Issue for Filter Test" });
+      archivedIssueId = archivedResponse.body.data.id;
+
+      // Archive it
+      await request(app)
+        .put(`/api/issues/${archivedIssueId}`)
+        .set("X-Project-ID", projectId)
+        .send({ archived: true });
+
+      // Create a non-archived issue
+      const nonArchivedResponse = await request(app)
+        .post("/api/issues")
+        .set("X-Project-ID", projectId)
+        .send({ title: "Non-Archived Issue for Filter Test" });
+      nonArchivedIssueId = nonArchivedResponse.body.data.id;
+    });
+
+    it("should return all issues (including archived) when archived param is not specified", async () => {
+      const response = await request(app)
+        .get("/api/issues")
+        .set("X-Project-ID", projectId)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data)).toBeTruthy();
+
+      // Should contain both archived and non-archived issues
+      const archivedIssue = response.body.data.find(
+        (issue: any) => issue.id === archivedIssueId
+      );
+      const nonArchivedIssue = response.body.data.find(
+        (issue: any) => issue.id === nonArchivedIssueId
+      );
+
+      expect(archivedIssue).toBeTruthy();
+      expect(nonArchivedIssue).toBeTruthy();
+    });
+
+    it("should return only archived issues when archived=true", async () => {
+      const response = await request(app)
+        .get("/api/issues?archived=true")
+        .set("X-Project-ID", projectId)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data)).toBeTruthy();
+
+      // All returned issues should be archived
+      response.body.data.forEach((issue: any) => {
+        expect(issue.archived).toBe(1);
+      });
+
+      // Should contain the archived issue
+      const archivedIssue = response.body.data.find(
+        (issue: any) => issue.id === archivedIssueId
+      );
+      expect(archivedIssue).toBeTruthy();
+
+      // Should NOT contain non-archived issues
+      const nonArchivedIssue = response.body.data.find(
+        (issue: any) => issue.id === nonArchivedIssueId
+      );
+      expect(nonArchivedIssue).toBeFalsy();
+    });
+
+    it("should return only non-archived issues when archived=false", async () => {
+      const response = await request(app)
+        .get("/api/issues?archived=false")
+        .set("X-Project-ID", projectId)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data)).toBeTruthy();
+
+      // All returned issues should be non-archived
+      response.body.data.forEach((issue: any) => {
+        expect(issue.archived).toBe(0);
+      });
+
+      // Should contain the non-archived issue
+      const nonArchivedIssue = response.body.data.find(
+        (issue: any) => issue.id === nonArchivedIssueId
+      );
+      expect(nonArchivedIssue).toBeTruthy();
+
+      // Should NOT contain archived issues
+      const archivedIssue = response.body.data.find(
+        (issue: any) => issue.id === archivedIssueId
+      );
+      expect(archivedIssue).toBeFalsy();
+    });
+  });
+
   describe("Integration tests", () => {
     it("should list the created issues", async () => {
       const response = await request(app)

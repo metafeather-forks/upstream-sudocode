@@ -41,11 +41,11 @@ export function createIssuesRouter(): Router {
       if (req.query.assignee) {
         options.assignee = req.query.assignee as string;
       }
-      // Default to excluding archived unless explicitly specified
-      options.archived =
-        req.query.archived !== undefined
-          ? req.query.archived === "true"
-          : false;
+      // Only filter by archived when explicitly specified
+      if (req.query.archived !== undefined) {
+        options.archived = req.query.archived === "true";
+      }
+      // Otherwise leave undefined - listIssues() will skip the filter
       if (req.query.limit) {
         options.limit = parseInt(req.query.limit as string, 10);
       }
