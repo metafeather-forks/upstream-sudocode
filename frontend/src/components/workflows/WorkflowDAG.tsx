@@ -144,20 +144,30 @@ function stepsToFlowElements(
         const isSourceCompleted =
           steps.find((s) => s.id === depId)?.status === 'completed'
 
+        // Check if this edge connects to the selected step
+        const isConnectedToSelected = Boolean(
+          selectedStepId && (step.id === selectedStepId || depId === selectedStepId)
+        )
+
+        // Determine colors - use primary theme color for connected edges
+        const highlightColor = 'hsl(var(--primary))'
+        const baseColor = isSourceCompleted ? '#22c55e' : '#94a3b8'
+        const edgeColor = isConnectedToSelected ? highlightColor : baseColor
+
         edges.push({
           id: `${depId}-${step.id}`,
           source: depId,
           target: step.id,
           type: 'smoothstep',
-          animated: isTargetRunning,
+          animated: isTargetRunning || isConnectedToSelected, // Add animation when connected
           style: {
-            stroke: isSourceCompleted ? '#22c55e' : '#94a3b8',
-            strokeWidth: 2,
-            opacity: isSourceCompleted ? 0.6 : 1,
+            stroke: edgeColor,
+            strokeWidth: isConnectedToSelected ? 3 : 2,
+            opacity: isConnectedToSelected ? 1 : isSourceCompleted ? 0.6 : 1,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isSourceCompleted ? '#22c55e' : '#94a3b8',
+            color: edgeColor,
           },
         })
       }
