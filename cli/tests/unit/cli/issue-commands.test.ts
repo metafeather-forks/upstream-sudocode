@@ -200,6 +200,75 @@ describe("Issue CLI Commands", () => {
       );
       expect(processExitSpy).toHaveBeenCalledWith(1);
     });
+
+    it("should exclude archived issues by default", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: true };
+      
+      // Archive one of the issues
+      const issueId = createdIssueIds[0];
+      await handleIssueUpdate(
+        { db, outputDir: tempDir, jsonOutput: false },
+        issueId,
+        { archived: "true" }
+      );
+      consoleLogSpy.mockClear();
+
+      // List without --archived flag (should exclude archived)
+      await handleIssueList(ctx, { limit: "50" });
+
+      const output = consoleLogSpy.mock.calls[0][0];
+      const issues = JSON.parse(output);
+      
+      // Only Issue 2 should appear (Issue 1 is archived)
+      expect(issues.length).toBe(1);
+      expect(issues.some((i: any) => i.id === issueId)).toBe(false);
+    });
+
+    it("should include only archived issues when --archived=true", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: true };
+      
+      // Archive one of the issues
+      const issueId = createdIssueIds[0];
+      await handleIssueUpdate(
+        { db, outputDir: tempDir, jsonOutput: false },
+        issueId,
+        { archived: "true" }
+      );
+      consoleLogSpy.mockClear();
+
+      // List with --archived=true
+      await handleIssueList(ctx, { archived: "true", limit: "50" });
+
+      const output = consoleLogSpy.mock.calls[0][0];
+      const issues = JSON.parse(output);
+      
+      // Only archived issues should appear
+      expect(issues.length).toBe(1);
+      expect(issues[0].id).toBe(issueId);
+    });
+
+    it("should exclude archived issues when --archived=false", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: true };
+      
+      // Archive one of the issues
+      const issueId = createdIssueIds[0];
+      await handleIssueUpdate(
+        { db, outputDir: tempDir, jsonOutput: false },
+        issueId,
+        { archived: "true" }
+      );
+      consoleLogSpy.mockClear();
+
+      // List with explicit --archived=false
+      await handleIssueList(ctx, { archived: "false", limit: "50" });
+
+      const output = consoleLogSpy.mock.calls[0][0];
+      const issues = JSON.parse(output);
+      
+      // Only non-archived issues should appear
+      expect(issues.length).toBe(1);
+      expect(issues.some((i: any) => i.id === issueId)).toBe(false);
+    });
   });
 
   describe("handleIssueShow", () => {
