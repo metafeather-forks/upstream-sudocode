@@ -93,6 +93,51 @@ describe('useIssues', () => {
     mockProjectId = 'test-project-id' // Reset to default
   })
 
+  describe('archived parameter handling', () => {
+    it('should pass archived=false by default when no parameter provided', async () => {
+      vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      // Should explicitly pass false, not undefined
+      expect(issuesApi.getAll).toHaveBeenCalledWith(false)
+    })
+
+    it('should pass archived=true when useIssues(true) is called', async () => {
+      vi.mocked(issuesApi.getAll).mockResolvedValue([])
+
+      const { result } = renderHook(() => useIssues(true), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(issuesApi.getAll).toHaveBeenCalledWith(true)
+    })
+
+    it('should pass archived=false when useIssues(false) is called', async () => {
+      vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)
+
+      const { result } = renderHook(() => useIssues(false), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      expect(issuesApi.getAll).toHaveBeenCalledWith(false)
+    })
+  })
+
   it('should fetch and return issues', async () => {
     vi.mocked(issuesApi.getAll).mockResolvedValue(mockIssues)
 

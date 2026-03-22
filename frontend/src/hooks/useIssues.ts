@@ -23,7 +23,7 @@ export function useIssues(archived?: boolean) {
 
   const query = useQuery({
     queryKey,
-    queryFn: () => issuesApi.getAll(archived),
+    queryFn: () => issuesApi.getAll(archived ?? false),
     enabled: !!currentProjectId && isProjectSynced,
   })
 
