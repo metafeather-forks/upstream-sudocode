@@ -256,7 +256,7 @@ export class ExecutionService {
 
     // 3. Determine execution mode and create execution with worktree
     // Store the original (unexpanded) prompt in the database
-    const mode = mergedConfig.mode || "worktree";
+    const mode = mergedConfig.mode || "local";
     let execution: Execution;
     let workDir: string;
 
@@ -1218,7 +1218,7 @@ ${feedback}`;
       id: newExecutionId,
       issue_id: sourceExecution.issue_id, // Can be null for adhoc executions
       agent_type: (sourceExecution.agent_type || "opencode") as AgentType,
-      mode: sourceExecution.mode || "worktree",
+      mode: sourceExecution.mode || "local",
       prompt: `[Forked from ${executionId}] ${sourceExecution.prompt || ""}`,
       config: sourceExecution.config ?? undefined,
       target_branch: sourceExecution.target_branch || "main",

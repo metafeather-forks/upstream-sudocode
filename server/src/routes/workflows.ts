@@ -1375,11 +1375,12 @@ export function createWorkflowsRouter(): Router {
       // Build execution config
       const agentTypeToUse =
         agent_type || workflow.config.defaultAgentType || "opencode";
+      const executeExecutionMode = workflow.config.executionMode || "local";
       const executionConfig = {
-        mode: "worktree" as const,
+        mode: executeExecutionMode as "local" | "worktree",
         model: model || workflow.config.orchestratorModel,
         baseBranch: workflow.baseBranch,
-        reuseWorktreePath,
+        reuseWorktreePath: executeExecutionMode === "worktree" ? reuseWorktreePath : undefined,
         // Workflow-spawned executions run autonomously without terminal
         dangerouslySkipPermissions: true,
       };

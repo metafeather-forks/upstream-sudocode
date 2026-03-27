@@ -483,7 +483,7 @@ describe("OrchestratorWorkflowEngine", () => {
       expect(executionService.createExecution).toHaveBeenLastCalledWith(
         null,
         expect.objectContaining({
-          mode: "worktree",
+          mode: "local",
           resume: sessionId,
           parentExecutionId: previousExecutionId, // Links to previous execution in chain
         }),

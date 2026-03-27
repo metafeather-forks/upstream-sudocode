@@ -518,8 +518,9 @@ export class SequentialWorkflowEngine extends BaseWorkflowEngine {
       throw new WorkflowStateError(workflowId, workflow.status, "start");
     }
 
-    // Create workflow-level worktree if not already present
-    if (!workflow.worktreePath) {
+    // Create workflow-level worktree only when in worktree mode
+    const executionMode = workflow.config.executionMode || "local";
+    if (executionMode === "worktree" && !workflow.worktreePath) {
       const { worktreePath, branchName } =
         await this.createWorkflowWorktreeHelper(
           workflow,
@@ -1199,12 +1200,14 @@ export class SequentialWorkflowEngine extends BaseWorkflowEngine {
     let commitSha = execution.after_commit ?? undefined;
 
     // Close the issue BEFORE auto-commit so the status change is included
-    // Use worktree path to keep changes isolated until explicit sync
-    await this.closeIssue(step.issueId, workflow.worktreePath);
+    // Use worktree path only in worktree mode to keep changes isolated
+    const effectiveMode = workflow.config.executionMode || "local";
+    const worktreePath = effectiveMode === "worktree" ? workflow.worktreePath : undefined;
+    await this.closeIssue(step.issueId, worktreePath);
 
-    // Auto-commit if configured and we have a worktree
+    // Auto-commit if configured
     // This now includes the issue status change from closeIssue above
-    if (workflow.config.autoCommitAfterStep && workflow.worktreePath) {
+    if (workflow.config.autoCommitAfterStep) {
       const newCommitSha = await this.commitStepChanges(workflow, step);
       if (newCommitSha) {
         commitSha = newCommitSha;
@@ -1243,7 +1246,10 @@ export class SequentialWorkflowEngine extends BaseWorkflowEngine {
     workflow: Workflow,
     step: WorkflowStep
   ): Promise<string | null> {
-    if (!workflow.worktreePath) {
+    // Determine working directory based on execution mode
+    const effectiveMode = workflow.config.executionMode || "local";
+    const workDir = effectiveMode === "worktree" ? workflow.worktreePath : this.repoPath;
+    if (!workDir) {
       return null;
     }
 
@@ -1253,7 +1259,7 @@ export class SequentialWorkflowEngine extends BaseWorkflowEngine {
     try {
       // Check if there are changes to commit
       const { stdout: status } = await execAsync("git status --porcelain", {
-        cwd: workflow.worktreePath,
+        cwd: workDir,
         maxBuffer: 10 * 1024 * 1024,
       });
 
@@ -1266,13 +1272,13 @@ export class SequentialWorkflowEngine extends BaseWorkflowEngine {
       // Escape double quotes in message for shell safety
       const escapedMessage = message.replace(/"/g, '\\"');
       await execAsync(`git add -A && git commit --no-verify -m "${escapedMessage}"`, {
-        cwd: workflow.worktreePath,
+        cwd: workDir,
         maxBuffer: 10 * 1024 * 1024,
       });
 
       // Get new commit SHA
       const { stdout: sha } = await execAsync("git rev-parse HEAD", {
-        cwd: workflow.worktreePath,
+        cwd: workDir,
       });
 
       return sha.trim();

@@ -326,8 +326,9 @@ export class OrchestratorWorkflowEngine extends BaseWorkflowEngine {
       throw new WorkflowStateError(workflowId, workflow.status, "start");
     }
 
-    // Create workflow-level worktree if not already present
-    if (!workflow.worktreePath) {
+    // Create workflow-level worktree only when in worktree mode
+    const executionMode = workflow.config.executionMode || "local";
+    if (executionMode === "worktree" && !workflow.worktreePath) {
       console.log(
         `[OrchestratorWorkflowEngine] Creating workflow worktree for ${workflowId}`
       );
@@ -453,12 +454,13 @@ export class OrchestratorWorkflowEngine extends BaseWorkflowEngine {
     // Create new execution that resumes the session
     // Link to the previous orchestrator execution for chain tracking
     const previousExecutionId = workflow.orchestratorExecutionId;
+    const resumeExecutionMode = workflow.config.executionMode || "local";
     const execution = await this.executionService.createExecution(
       null, // No issue - this is the orchestrator
       {
-        mode: "worktree" as const,
+        mode: resumeExecutionMode as "local" | "worktree",
         baseBranch: workflow.baseBranch,
-        reuseWorktreePath: workflow.worktreePath,
+        reuseWorktreePath: resumeExecutionMode === "worktree" ? workflow.worktreePath : undefined,
         resume: sessionId, // Resume the previous session
         parentExecutionId: previousExecutionId, // Link to previous execution in chain
         ...agentConfig,

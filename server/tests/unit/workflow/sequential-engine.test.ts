@@ -1500,6 +1500,7 @@ describe("SequentialWorkflowEngine", () => {
           autoCommitAfterStep: true,
           defaultAgentType: "opencode",
           autonomyLevel: "human_in_the_loop",
+          executionMode: "worktree",
         },
         steps: [
           { id: "step-1", issueId: "i-1", index: 0, dependencies: [], status: "ready" },
