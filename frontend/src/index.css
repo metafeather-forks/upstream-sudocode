@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe area insets for iOS standalone PWA (Home Screen app) */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Fixed sidebar and mobile menu button sit outside body flow */
+  #root aside.fixed {
+    top: env(safe-area-inset-top) !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    left: env(safe-area-inset-left) !important;
+  }
+
+  #root button.fixed {
+    top: calc(env(safe-area-inset-top) + 1rem) !important;
+    left: calc(env(safe-area-inset-left) + 1rem) !important;
+  }
+}
+
 /*
  * CSS variables are applied dynamically via JavaScript in ThemeContext.
  * This allows for multiple color themes beyond just light/dark.
