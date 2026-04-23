@@ -1,2 +1,4 @@
+encore.dev v1.52.1 h1:bXMNaysltM1OrfsKd+CxRRMRsVHYuU1jOvvR59mExy0=
+encore.dev v1.52.1/go.mod h1:lK8vSJG6uhYeUwT87/FEpcLdiN98QUcotd3gxRX0xDw=
 github.com/coder/websocket v1.8.13/go.mod h1:LNVeNrXQZfe5qhS9ALED3uA+l5pPqvwXg3CKoDBB2gs=
 github.com/mark3labs/mcp-go v0.32.0/go.mod h1:rXqOudj/djTORU/ThxYx8fqEVj/5pvTuuebQ2RC7uk4=
