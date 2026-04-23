@@ -1,0 +1,3 @@
+{
+    "id": "sudocode-go"
+}
