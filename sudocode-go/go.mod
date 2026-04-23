@@ -7,4 +7,7 @@ require (
 	github.com/mark3labs/mcp-go v0.32.0
 )
 
-require encore.dev v1.52.1 // indirect
+require (
+	encore.dev v1.52.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
