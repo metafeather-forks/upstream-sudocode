@@ -9,6 +9,8 @@ const (
 	IssueStatusBlocked     IssueStatus = "blocked"
 	IssueStatusNeedsReview IssueStatus = "needs_review"
 	IssueStatusClosed      IssueStatus = "closed"
+	IssueStatusWontFix     IssueStatus = "wont_fix"
+	IssueStatusDuplicate   IssueStatus = "duplicate"
 )
 
 // Issue represents an issue entity (DB/core form).

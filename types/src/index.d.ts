@@ -101,7 +101,9 @@ export type IssueStatus =
   | "in_progress"
   | "blocked"
   | "needs_review"
-  | "closed";
+  | "closed"
+  | "wont_fix"
+  | "duplicate";
 
 export interface Relationship {
   from_id: string;
