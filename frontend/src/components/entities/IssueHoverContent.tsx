@@ -28,6 +28,8 @@ const statusConfig: Record<IssueStatus, { label: string; color: string; icon: Re
     blocked: { label: 'Blocked', color: 'text-red-500', icon: XCircle },
     needs_review: { label: 'Needs Review', color: 'text-yellow-500', icon: AlertCircle },
     closed: { label: 'Closed', color: 'text-green-500', icon: CheckCircle2 },
+    wont_fix: { label: "Won't Fix", color: 'text-gray-400', icon: XCircle },
+    duplicate: { label: 'Duplicate', color: 'text-gray-400', icon: XCircle },
   }
 
 // Execution status configuration

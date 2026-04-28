@@ -252,8 +252,8 @@ export default function IssuesPage() {
       const issue = issues.find((i) => i.id === issueId)
       if (!issue) continue
 
-      // Skip if issue is already closed - closed issues stay in closed column
-      if (issue.status === 'closed') continue
+      // Skip if issue is already in a terminal status - they stay in closed column
+      if (issue.status === 'closed' || issue.status === 'wont_fix' || issue.status === 'duplicate') continue
 
       // Active execution statuses should show in "in_progress" column
       if (['preparing', 'pending', 'running', 'paused'].includes(execution.status)) {
@@ -291,6 +291,8 @@ export default function IssuesPage() {
       blocked: [],
       needs_review: [],
       closed: [],
+      wont_fix: [],
+      duplicate: [],
     }
 
     // Group issues based on display status (which considers execution state)
@@ -299,7 +301,10 @@ export default function IssuesPage() {
       const displayStatus =
         displayStatusOverrides[issue.id] || (issue.status.toLowerCase() as IssueStatus)
 
-      if (groups[displayStatus]) {
+      // Route wont_fix and duplicate into the closed column
+      if (displayStatus === 'wont_fix' || displayStatus === 'duplicate') {
+        groups.closed.push(issue)
+      } else if (groups[displayStatus]) {
         groups[displayStatus].push(issue)
       } else {
         // Default to open if status is unknown

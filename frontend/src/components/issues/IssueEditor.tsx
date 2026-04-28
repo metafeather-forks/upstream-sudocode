@@ -22,6 +22,8 @@ const STATUS_OPTIONS: { value: IssueStatus; label: string }[] = [
   { value: 'blocked', label: 'Blocked' },
   { value: 'needs_review', label: 'Needs Review' },
   { value: 'closed', label: 'Closed' },
+  { value: 'wont_fix', label: "Won't Fix" },
+  { value: 'duplicate', label: 'Duplicate' },
 ]
 
 const PRIORITY_OPTIONS = [

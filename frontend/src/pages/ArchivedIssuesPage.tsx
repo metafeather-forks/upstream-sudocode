@@ -80,11 +80,16 @@ export default function ArchivedIssuesPage() {
       blocked: [],
       needs_review: [],
       closed: [],
+      wont_fix: [],
+      duplicate: [],
     }
 
     filteredIssues.forEach((issue) => {
       const status = issue.status.toLowerCase() as IssueStatus
-      if (groups[status]) {
+      // Route wont_fix and duplicate into the closed column
+      if (status === 'wont_fix' || status === 'duplicate') {
+        groups.closed.push(issue)
+      } else if (groups[status]) {
         groups[status].push(issue)
       } else {
         groups.open.push(issue)

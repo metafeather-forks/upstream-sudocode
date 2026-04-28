@@ -27,6 +27,8 @@ const statusLabels: Record<IssueStatus, string> = {
   blocked: 'Blocked',
   needs_review: 'Needs Review',
   closed: 'Closed',
+  wont_fix: "Won't Fix",
+  duplicate: 'Duplicate',
 }
 
 const statusColors: Record<IssueStatus, string> = {
@@ -35,6 +37,8 @@ const statusColors: Record<IssueStatus, string> = {
   blocked: '--chart-1',
   needs_review: '--chart-4',
   closed: '--chart-5',
+  wont_fix: '--chart-5',
+  duplicate: '--chart-5',
 }
 
 interface IssueKanbanBoardProps {
