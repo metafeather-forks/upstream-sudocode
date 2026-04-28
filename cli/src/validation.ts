@@ -39,6 +39,8 @@ const VALID_ISSUE_STATUSES = new Set<IssueStatus>([
   "blocked",
   "needs_review",
   "closed",
+  "wont_fix",
+  "duplicate",
 ]);
 
 export function isValidIssueStatus(status: string): status is IssueStatus {
