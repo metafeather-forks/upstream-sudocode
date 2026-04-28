@@ -47,7 +47,7 @@ Sudocode is a git-native spec and issue management system designed for AI-assist
 
 **Issues**: Work items tracked in the database
 - Types: bug, feature, task, epic, chore
-- Status: open → in_progress → blocked → closed
+- Status: open → in_progress → blocked → needs_review → closed / wont_fix / duplicate
 - Can reference and implement specs
 
 **Feedback**: Issues can provide anchored feedback on specs
@@ -103,7 +103,7 @@ Sudocode is a git-native spec and issue management system designed for AI-assist
 **Description**: List all issues with optional filters
 
 **Parameters**:
-- `status` (IssueStatus?): Filter by status (open, in_progress, blocked, needs_review, closed)
+- `status` (IssueStatus?): Filter by status (open, in_progress, blocked, needs_review, closed, wont_fix, duplicate)
 - `type` (IssueType?): Filter by type (bug, feature, task, epic, chore)
 - `priority` (number?): Filter by priority (0-4)
 - `assignee` (string?): Filter by assignee

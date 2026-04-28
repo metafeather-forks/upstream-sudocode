@@ -135,7 +135,7 @@ sudocode issue list --status open          # filter by status
 sudocode issue show <id>
 
 # Update — status can ONLY be set via update (not create)
-sudocode issue update <id> -s <status>     # open|in_progress|blocked|needs_review|closed
+sudocode issue update <id> -s <status>     # open|in_progress|blocked|needs_review|closed|wont_fix|duplicate
 sudocode issue update <id> --title '<new>' --description '<new>'
 
 # Close (shortcut for update --status closed)
@@ -212,6 +212,10 @@ open → in_progress  → closed
   ↓         ↓            ↑
   └─────────┴────────────┘
     blocked (when waiting on dependencies)
+
+Terminal states (no further transitions):
+  any → wont_fix   (issue will not be addressed)
+  any → duplicate  (duplicate of another issue)
 ```
 
 When requirements are not fully met or unforeseen issues arise during execution:
