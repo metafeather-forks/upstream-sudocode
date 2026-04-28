@@ -36,7 +36,7 @@ func Ready(ctx context.Context) (*ReadyResponse, error) {
 		  AND i.archived = false
 		  AND NOT EXISTS (
 		    SELECT 1 FROM relationships r
-		    JOIN issues blocker ON blocker.project_id = $1 AND blocker.id = r.from_id AND blocker.status != 'closed'
+		    JOIN issues blocker ON blocker.project_id = $1 AND blocker.id = r.from_id AND blocker.status NOT IN ('closed', 'wont_fix', 'duplicate')
 		    WHERE r.project_id = $1
 		      AND r.to_id = i.id
 		      AND r.relationship_type = 'blocks'
