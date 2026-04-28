@@ -1140,6 +1140,7 @@ def close_github_issue(
     *,
     repo: str,
     issue_number: int,
+    reason: str = "completed",
     dry_run: bool = False,
 ) -> bool:
     """Close a GitHub Issue to sync status with Sudocode.
@@ -1147,20 +1148,24 @@ def close_github_issue(
     Args:
         repo: Repository in "owner/repo" format.
         issue_number: Issue number to close.
+        reason: Close reason — "completed" or "not_planned".
         dry_run: If True, skip API calls.
 
     Returns:
         True on success (or already closed), False on failure.
     """
+    cmd = [
+        "gh",
+        "issue",
+        "close",
+        str(issue_number),
+        "--repo",
+        repo,
+    ]
+    if reason == "not_planned":
+        cmd.extend(["--reason", "not_planned"])
     result = run_gh(
-        [
-            "gh",
-            "issue",
-            "close",
-            str(issue_number),
-            "--repo",
-            repo,
-        ],
+        cmd,
         dry_run=dry_run,
     )
 
@@ -1381,17 +1386,23 @@ def export_entity(
                 "issue_id": existing_link["metadata"]["github_issue_id"],
             }
 
-    # Sync status: close the GitHub Issue if Sudocode status is "closed"
-    if result_data is not None and status == "closed":
+    # Sync status: close the GitHub Issue if Sudocode status warrants it
+    _CLOSE_REASON_MAP = {
+        "closed": "completed",
+        "wont_fix": "not_planned",
+        "duplicate": "not_planned",
+    }
+    if result_data is not None and status in _CLOSE_REASON_MAP:
         close_ok = close_github_issue(
             repo=repo,
             issue_number=result_data["issue_number"],
+            reason=_CLOSE_REASON_MAP[status],
             dry_run=dry_run,
         )
         if not close_ok:
             print(
                 f"  Warning: failed to close #{result_data['issue_number']} "
-                f"to match Sudocode status 'closed' for {entity_id}",
+                f"to match Sudocode status {status!r} for {entity_id}",
                 file=sys.stderr,
             )
             summary.failed += 1
