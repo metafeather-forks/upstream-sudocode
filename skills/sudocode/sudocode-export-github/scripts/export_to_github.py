@@ -39,7 +39,7 @@ import sys
 import tempfile
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -95,7 +95,7 @@ class SudocodeResult:
 def run_sudocode(
     command: list[str],
     *,
-    sudocode_dir: str | Path | None = None,
+    project_id: str | None = None,
     dry_run: bool = False,
 ) -> SudocodeResult:
     """Execute a sudocode CLI command.
@@ -103,16 +103,16 @@ def run_sudocode(
     Args:
         command: Command list WITHOUT the leading ``sudocode``, e.g.
             ``["spec", "list", "--json"]``.
-        sudocode_dir: Working directory for project discovery.  Passed as
-            ``--working-dir`` to the CLI.
+        project_id: Project ID for project-scoped commands.  Passed as
+            ``--project-id`` to the CLI.
         dry_run: If True, skip execution and return a dry-run result.
 
     Returns:
         SudocodeResult with success/failure status and captured output.
     """
     full_cmd = ["sudocode"]
-    if sudocode_dir is not None:
-        full_cmd += ["--working-dir", str(sudocode_dir)]
+    if project_id is not None:
+        full_cmd += ["--project-id", project_id]
     full_cmd += command
 
     if dry_run:
@@ -160,7 +160,7 @@ def _parse_jsonl(path: Path) -> dict[str, dict[str, Any]]:
 
 
 def load_entities(
-    sudocode_dir: str | Path,
+    project_id: str,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """Load all specs and issues via ``sudocode export``.
 
@@ -170,8 +170,7 @@ def load_entities(
     out of sync with the SQLite database).
 
     Args:
-        sudocode_dir: Path to the ``.sudocode`` directory (or its parent).
-            Passed as ``--working-dir`` to the CLI.
+        project_id: Project ID passed as ``--project-id`` to the CLI.
 
     Returns:
         Tuple of ``(specs_dict, issues_dict)`` where each dict maps
@@ -184,7 +183,7 @@ def load_entities(
     with tempfile.TemporaryDirectory(prefix="sudocode-export-") as tmpdir:
         result = run_sudocode(
             ["export", "-o", tmpdir],
-            sudocode_dir=sudocode_dir,
+            project_id=project_id,
         )
         if not result.success:
             raise RuntimeError(f"sudocode export failed: {result.stderr.strip()}")
@@ -475,7 +474,7 @@ def _break_cycles(
 
         # Find which edges in `remaining` participate in this cycle.
         # The cycle is [n0, n1, ..., nk] meaning n0->n1->...->nk->n0.
-        cycle_set = set(cycle)
+        set(cycle)
         cycle_directed_edges: set[tuple[str, str]] = set()
         for i in range(len(cycle)):
             pre = cycle[i]
@@ -672,7 +671,7 @@ def rewrite_references(text: str, mapping: dict[str, int]) -> str:
     parts = re.split(r"(```[^\n]*\n.*?```)", text, flags=re.DOTALL)
 
     result_parts: list[str] = []
-    for i, part in enumerate(parts):
+    for _i, part in enumerate(parts):
         if part.startswith("```"):
             # Inside a code fence — leave untouched
             result_parts.append(part)
@@ -808,14 +807,14 @@ def ensure_labels(repo: str, label: str, *, dry_run: bool = False) -> None:
 
 
 def add_external_link(
-    sudocode_dir: Path | str,
+    project_id: str,
     entity_id: str,
     link: dict[str, Any],
 ) -> None:
     """Add an external link to an entity via ``sudocode external-link add``.
 
     Args:
-        sudocode_dir: Path to the ``.sudocode`` directory (or its parent).
+        project_id: Project ID for CLI invocation.
         entity_id: ID of the entity (e.g. ``s-xxxx`` or ``i-xxxx``).
         link: The external link dict containing ``provider``, ``external_id``,
             ``external_url``, ``sync_direction``, ``content_hash``, and
@@ -842,7 +841,7 @@ def add_external_link(
     if link.get("metadata"):
         cmd += ["--metadata", json.dumps(link["metadata"])]
 
-    result = run_sudocode(cmd, sudocode_dir=sudocode_dir)
+    result = run_sudocode(cmd, project_id=project_id)
     if not result.success:
         raise RuntimeError(
             f"sudocode external-link add failed for {entity_id}: "
@@ -851,7 +850,7 @@ def add_external_link(
 
 
 def update_external_link(
-    sudocode_dir: Path | str,
+    project_id: str,
     entity_id: str,
     external_id: str,
     *,
@@ -862,7 +861,7 @@ def update_external_link(
     """Update an existing external link via ``sudocode external-link update``.
 
     Args:
-        sudocode_dir: Path to the ``.sudocode`` directory (or its parent).
+        project_id: Project ID for CLI invocation.
         entity_id: ID of the entity (e.g. ``s-xxxx`` or ``i-xxxx``).
         external_id: The ``external_id`` of the link to update.
         content_hash: New content hash (optional).
@@ -886,7 +885,7 @@ def update_external_link(
     if metadata is not None:
         cmd += ["--metadata", json.dumps(metadata)]
 
-    result = run_sudocode(cmd, sudocode_dir=sudocode_dir)
+    result = run_sudocode(cmd, project_id=project_id)
     if not result.success:
         raise RuntimeError(
             f"sudocode external-link update failed for {entity_id}: "
@@ -1148,7 +1147,7 @@ def close_github_issue(
     Args:
         repo: Repository in "owner/repo" format.
         issue_number: Issue number to close.
-        reason: Close reason — "completed" or "not_planned".
+        reason: Close reason — "completed" or "not planned".
         dry_run: If True, skip API calls.
 
     Returns:
@@ -1162,8 +1161,8 @@ def close_github_issue(
         "--repo",
         repo,
     ]
-    if reason == "not_planned":
-        cmd.extend(["--reason", "not_planned"])
+    if reason == "not planned":
+        cmd.extend(["--reason", "not planned"])
     result = run_gh(
         cmd,
         dry_run=dry_run,
@@ -1202,7 +1201,7 @@ def export_entity(
     ref_mapping: dict[str, int],
     spec_label: str,
     issue_label: str,
-    sudocode_dir: Path,
+    project_id: str,
     dry_run: bool,
     force: bool,
     summary: ExportSummary,
@@ -1276,7 +1275,7 @@ def export_entity(
             }
 
             if not dry_run:
-                add_external_link(sudocode_dir, entity_id, link)
+                add_external_link(project_id, entity_id, link)
 
             summary.updated += 1
             result_data = {
@@ -1323,7 +1322,7 @@ def export_entity(
             # This prevents duplicates on retry — the link exists so next run
             # will UPDATE instead of CREATE.
             if not dry_run:
-                add_external_link(sudocode_dir, entity_id, link)
+                add_external_link(project_id, entity_id, link)
 
             # Handle partial failure: issue created but ID fetch failed
             if result["issue_id"] == 0:
@@ -1373,7 +1372,7 @@ def export_entity(
 
             if not dry_run:
                 update_external_link(
-                    sudocode_dir,
+                    project_id,
                     entity_id,
                     existing_link["external_id"],
                     content_hash=current_hash,
@@ -1389,8 +1388,8 @@ def export_entity(
     # Sync status: close the GitHub Issue if Sudocode status warrants it
     _CLOSE_REASON_MAP = {
         "closed": "completed",
-        "wont_fix": "not_planned",
-        "duplicate": "not_planned",
+        "wont_fix": "not planned",
+        "duplicate": "not planned",
     }
     if result_data is not None and status in _CLOSE_REASON_MAP:
         close_ok = close_github_issue(
@@ -1420,7 +1419,7 @@ def export_entities(
     *,
     sorted_entities: list[tuple[str, str, dict]],
     repo: str,
-    sudocode_dir: Path,
+    project_id: str,
     spec_label: str,
     issue_label: str,
     dry_run: bool,
@@ -1437,7 +1436,7 @@ def export_entities(
     Args:
         sorted_entities: Topologically sorted list of (id, type, data).
         repo: Repository in "owner/repo" format.
-        sudocode_dir: Path to .sudocode directory.
+        project_id: Project ID for CLI invocation.
         spec_label: Label for spec entities.
         issue_label: Label for issue entities.
         dry_run: If True, skip API calls.
@@ -1470,7 +1469,7 @@ def export_entities(
             ref_mapping=ref_mapping,
             spec_label=spec_label,
             issue_label=issue_label,
-            sudocode_dir=Path(sudocode_dir),
+            project_id=project_id,
             dry_run=dry_run,
             force=force,
             summary=summary,
@@ -2041,7 +2040,7 @@ def export_feedback(
     ref_mapping: dict[str, int],
     owner: str,
     repo: str,
-    sudocode_dir: Path | None = None,
+    project_id: str | None = None,
     dry_run: bool = False,
     delay: float = 0.0,
 ) -> FeedbackSummary:
@@ -2058,7 +2057,7 @@ def export_feedback(
         ref_mapping: Dict of entity_id -> github_issue_number.
         owner: GitHub repo owner.
         repo: GitHub repo name.
-        sudocode_dir: Path to .sudocode directory (for JSONL writes).
+        project_id: Project ID for CLI invocation.
         dry_run: If True, skip API calls and JSONL writes.
 
     Returns:
@@ -2125,14 +2124,14 @@ def export_feedback(
         summary.exported += 1
 
         # Update exported_feedback in external_link via CLI
-        if not dry_run and ext_link and sudocode_dir:
+        if not dry_run and ext_link and project_id:
             exported_hashes.append(content_hash)
             if "exported_feedback" not in ext_link.get("metadata", {}):
                 ext_link.setdefault("metadata", {})["exported_feedback"] = []
             ext_link["metadata"]["exported_feedback"] = exported_hashes
 
             update_external_link(
-                sudocode_dir,
+                project_id,
                 to_id,
                 ext_link["external_id"],
                 metadata=ext_link["metadata"],
@@ -2234,8 +2233,8 @@ def check_gh_auth() -> None:
     """
     result = run_gh(["gh", "auth", "status"])
     if not result.success:
-        print(f"Error: gh CLI is not authenticated.", file=sys.stderr)
-        print(f"  Run 'gh auth login' to authenticate.", file=sys.stderr)
+        print("Error: gh CLI is not authenticated.", file=sys.stderr)
+        print("  Run 'gh auth login' to authenticate.", file=sys.stderr)
         if result.stderr:
             print(f"  Details: {result.stderr.strip()}", file=sys.stderr)
         raise SystemExit(1)
@@ -2257,21 +2256,21 @@ def check_repo_exists(repo: str) -> None:
         raise SystemExit(1)
 
 
-def check_sudocode_dir(sudocode_dir: str) -> None:
+def check_project(project_id: str) -> None:
     """Verify that the sudocode project is accessible via the CLI.
 
     Runs ``sudocode status`` to confirm the project is valid and the
     CLI can reach the database.
 
     Args:
-        sudocode_dir: Path to the ``.sudocode`` directory.
+        project_id: Project ID to verify.
 
     Raises SystemExit if the project is not found or the CLI fails.
     """
-    result = run_sudocode(["status"], sudocode_dir=sudocode_dir)
+    result = run_sudocode(["status"], project_id=project_id)
     if not result.success:
         print(
-            f"Error: Sudocode project not found or inaccessible at: {sudocode_dir}",
+            f"Error: Sudocode project not found or inaccessible: {project_id}",
             file=sys.stderr,
         )
         if result.stderr:
@@ -2311,9 +2310,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target GitHub repository in owner/repo format",
     )
     parser.add_argument(
-        "--sudocode-dir",
-        default=".sudocode",
-        help="Path to sudocode data directory (default: .sudocode)",
+        "--project-id",
+        required=True,
+        help="Sudocode project ID (from `sudocode config project-id`)",
     )
     parser.add_argument(
         "--spec-label",
@@ -2358,14 +2357,14 @@ def main() -> None:
     args = parser.parse_args()
 
     # Banner
-    print(f"Sudocode -> GitHub Issues Export")
+    print("Sudocode -> GitHub Issues Export")
     print(f"  Spec:    {args.spec_id}")
     print(f"  Repo:    {args.repo}")
-    print(f"  Dir:     {args.sudocode_dir}")
+    print(f"  Project: {args.project_id}")
     if args.dry_run:
-        print(f"  Mode:    DRY RUN (no changes will be made)")
+        print("  Mode:    DRY RUN (no changes will be made)")
     if args.force:
-        print(f"  Force:   Re-exporting all entities")
+        print("  Force:   Re-exporting all entities")
     if args.delay != 1.0:
         print(f"  Delay:   {args.delay}s between operations")
     print()
@@ -2374,10 +2373,10 @@ def main() -> None:
     if not args.dry_run:
         check_gh_auth()
         check_repo_exists(args.repo)
-    check_sudocode_dir(args.sudocode_dir)
+    check_project(args.project_id)
 
     # Load data via sudocode CLI
-    specs, issues = load_entities(args.sudocode_dir)
+    specs, issues = load_entities(args.project_id)
 
     # Collect graph
     try:
@@ -2408,7 +2407,7 @@ def main() -> None:
     summary, ref_mapping, id_mapping = export_entities(
         sorted_entities=sorted_entities,
         repo=args.repo,
-        sudocode_dir=Path(args.sudocode_dir),
+        project_id=args.project_id,
         spec_label=args.spec_label,
         issue_label=args.issue_label,
         dry_run=args.dry_run,
@@ -2445,7 +2444,7 @@ def main() -> None:
         ref_mapping=ref_mapping,
         owner=owner,
         repo=repo_name,
-        sudocode_dir=Path(args.sudocode_dir),
+        project_id=args.project_id,
         dry_run=args.dry_run,
         delay=args.delay,
     )
@@ -2473,7 +2472,7 @@ def main() -> None:
             file=sys.stderr,
         )
         print(
-            f"\nTo fix: re-run with --force to retry failed operations.",
+            "\nTo fix: re-run with --force to retry failed operations.",
             file=sys.stderr,
         )
         raise SystemExit(1)

@@ -30,7 +30,7 @@ from export_to_github import (
     build_parser,
     check_gh_auth,
     check_repo_exists,
-    check_sudocode_dir,
+    check_project,
     run_gh,
 )
 
@@ -122,26 +122,27 @@ class TestExportSummary:
 class TestBuildParser:
     def test_required_args(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "my-proj-abc123"])
         assert args.spec_id == "s-1234"
         assert args.repo == "owner/repo"
+        assert args.project_id == "my-proj-abc123"
 
     def test_missing_spec_id_fails(self):
         parser = build_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args(["--repo", "owner/repo"])
+            parser.parse_args(["--repo", "owner/repo", "--project-id", "my-proj-abc123"])
 
     def test_missing_repo_fails(self):
         parser = build_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args(["--spec-id", "s-1234"])
+            parser.parse_args(["--spec-id", "s-1234", "--project-id", "my-proj-abc123"])
 
-    def test_sudocode_dir_default(self):
+    def test_missing_project_id_fails(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
-        assert args.sudocode_dir == ".sudocode"
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
 
-    def test_sudocode_dir_custom(self):
+    def test_project_id_custom(self):
         parser = build_parser()
         args = parser.parse_args(
             [
@@ -149,15 +150,15 @@ class TestBuildParser:
                 "s-1234",
                 "--repo",
                 "owner/repo",
-                "--sudocode-dir",
-                "/tmp/.sudocode",
+                "--project-id",
+                "custom-proj-xyz789",
             ]
         )
-        assert args.sudocode_dir == "/tmp/.sudocode"
+        assert args.project_id == "custom-proj-xyz789"
 
     def test_spec_label_default(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1"])
         assert args.spec_label == "spec"
 
     def test_spec_label_custom(self):
@@ -168,6 +169,8 @@ class TestBuildParser:
                 "s-1234",
                 "--repo",
                 "owner/repo",
+                "--project-id",
+                "p1",
                 "--spec-label",
                 "specification",
             ]
@@ -176,7 +179,7 @@ class TestBuildParser:
 
     def test_issue_label_default(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1"])
         assert args.issue_label == ""
 
     def test_issue_label_custom(self):
@@ -187,6 +190,8 @@ class TestBuildParser:
                 "s-1234",
                 "--repo",
                 "owner/repo",
+                "--project-id",
+                "p1",
                 "--issue-label",
                 "work-item",
             ]
@@ -196,37 +201,37 @@ class TestBuildParser:
     def test_dry_run_flag(self):
         parser = build_parser()
         args = parser.parse_args(
-            ["--spec-id", "s-1234", "--repo", "owner/repo", "--dry-run"]
+            ["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1", "--dry-run"]
         )
         assert args.dry_run is True
 
     def test_dry_run_default_false(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1"])
         assert args.dry_run is False
 
     def test_force_flag(self):
         parser = build_parser()
         args = parser.parse_args(
-            ["--spec-id", "s-1234", "--repo", "owner/repo", "--force"]
+            ["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1", "--force"]
         )
         assert args.force is True
 
     def test_force_default_false(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1"])
         assert args.force is False
 
     def test_delay_flag(self):
         parser = build_parser()
         args = parser.parse_args(
-            ["--spec-id", "s-1234", "--repo", "owner/repo", "--delay", "2.5"]
+            ["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1", "--delay", "2.5"]
         )
         assert args.delay == 2.5
 
     def test_delay_default_one(self):
         parser = build_parser()
-        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo"])
+        args = parser.parse_args(["--spec-id", "s-1234", "--repo", "owner/repo", "--project-id", "p1"])
         assert args.delay == 1.0
 
     def test_all_flags_combined(self):
@@ -237,8 +242,8 @@ class TestBuildParser:
                 "s-2a7c",
                 "--repo",
                 "org/project",
-                "--sudocode-dir",
-                "/custom/.sudocode",
+                "--project-id",
+                "my-proj-abc123",
                 "--spec-label",
                 "requirement",
                 "--issue-label",
@@ -251,7 +256,7 @@ class TestBuildParser:
         )
         assert args.spec_id == "s-2a7c"
         assert args.repo == "org/project"
-        assert args.sudocode_dir == "/custom/.sudocode"
+        assert args.project_id == "my-proj-abc123"
         assert args.spec_label == "requirement"
         assert args.issue_label == "task"
         assert args.dry_run is True
@@ -540,19 +545,19 @@ class TestCheckRepoExists:
             check_repo_exists("invalid/repo")
 
 
-class TestCheckSudocodeDir:
+class TestCheckProject:
     @patch("export_to_github.run_sudocode")
-    def test_valid_dir(self, mock_run):
+    def test_valid_project(self, mock_run):
         """Successful sudocode status check does not raise."""
         mock_run.return_value = SudocodeResult(
             success=True, stdout="Project OK", stderr="", command=["sudocode", "status"]
         )
         # Should not raise
-        check_sudocode_dir("/some/.sudocode")
+        check_project("my-proj-abc123")
         mock_run.assert_called_once()
 
     @patch("export_to_github.run_sudocode")
-    def test_missing_dir(self, mock_run):
+    def test_missing_project(self, mock_run):
         """Failed sudocode status raises SystemExit."""
         mock_run.return_value = SudocodeResult(
             success=False,
@@ -561,7 +566,7 @@ class TestCheckSudocodeDir:
             command=["sudocode", "status"],
         )
         with pytest.raises(SystemExit):
-            check_sudocode_dir("/nonexistent/path/.sudocode")
+            check_project("nonexistent-proj-000")
 
     @patch("export_to_github.run_sudocode")
     def test_cli_failure_raises(self, mock_run):
@@ -573,4 +578,4 @@ class TestCheckSudocodeDir:
             command=["sudocode", "status"],
         )
         with pytest.raises(SystemExit):
-            check_sudocode_dir("/some/.sudocode")
+            check_project("my-proj-abc123")

@@ -15,19 +15,16 @@ Export a Sudocode spec and its full dependency graph (child specs, implementing 
 - `gh` CLI installed and authenticated (`gh auth status`)
 - Target GitHub repository exists and is accessible
 - `uv` installed (runs the script with inline metadata, no venv needed)
-- A `.sudocode/` directory with `specs.jsonl` and `issues.jsonl`
+- A sudocode project with a known `project_id`
 
 ## Usage
 
-### Determine the sudocode directory
+### Determine the project ID
 
-Resolve the `.sudocode/` directory from the project registry rather than assuming it exists in `cwd`:
+Resolve the `project_id` from the project registry:
 
-1. Use `get_project_id` MCP tool or `sudocode config project-id` to get the `project_id`
-2. Look up the project's path in `~/.config/sudocode/projects.json`
-3. The `.sudocode/` directory is at `<project_path>/.sudocode/`
-
-If the project uses a non-standard location, pass it via `--sudocode-dir`.
+1. Use `get_project_id` MCP tool, or run `sudocode config project-id` in the project directory
+2. The project ID is stable and portable — no need to know the `.sudocode/` directory path
 
 ### Run the export
 
@@ -35,7 +32,7 @@ If the project uses a non-standard location, pass it via `--sudocode-dir`.
 uv run ~/.agents/skills/sudocode/sudocode-export-github/scripts/export_to_github.py \
   --spec-id <SPEC_ID> \
   --repo <OWNER/REPO> \
-  [--sudocode-dir .sudocode] \
+  --project-id <PROJECT_ID> \
   [--spec-label spec] \
   [--issue-label ""] \
   [--dry-run] \
@@ -48,7 +45,7 @@ uv run ~/.agents/skills/sudocode/sudocode-export-github/scripts/export_to_github
 |------|----------|---------|-------------|
 | `--spec-id` | Yes | — | Root spec ID to export (e.g. `s-2a7c`) |
 | `--repo` | Yes | — | Target GitHub repo in `owner/repo` format |
-| `--sudocode-dir` | No | `.sudocode` | Path to sudocode data directory |
+| `--project-id` | Yes | — | Sudocode project ID (from `sudocode config project-id`) |
 | `--spec-label` | No | `spec` | Label applied to spec GitHub Issues |
 | `--issue-label` | No | (none) | Label applied to issue GitHub Issues |
 | `--dry-run` | No | false | Print planned actions without making API calls or modifying JSONL |
@@ -59,12 +56,12 @@ uv run ~/.agents/skills/sudocode/sudocode-export-github/scripts/export_to_github
 1. **Dry-run first** to verify the export plan:
    ```bash
    uv run ~/.agents/skills/sudocode/sudocode-export-github/scripts/export_to_github.py \
-     --spec-id s-2a7c --repo owner/repo --dry-run
+     --spec-id s-2a7c --repo owner/repo --project-id my-proj-abc123 --dry-run
    ```
 2. **Run the actual export:**
    ```bash
    uv run ~/.agents/skills/sudocode/sudocode-export-github/scripts/export_to_github.py \
-     --spec-id s-2a7c --repo owner/repo
+     --spec-id s-2a7c --repo owner/repo --project-id my-proj-abc123
    ```
 3. **Re-run for incremental updates** — only changed entities are updated, unchanged ones are skipped.
 

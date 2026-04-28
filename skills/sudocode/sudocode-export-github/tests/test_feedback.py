@@ -684,14 +684,14 @@ class TestExportFeedback:
             ref_mapping=ref_mapping,
             owner="owner",
             repo="repo",
-            sudocode_dir=Path("/tmp/fake"),
+            project_id="/tmp/fake",
         )
 
         assert summary.exported == 1
         # Verify update_external_link was called with updated metadata
         assert mock_update_link.called
         call_args = mock_update_link.call_args
-        # update_external_link(sudocode_dir, entity_id, external_id, metadata=...)
+        # update_external_link(project_id, entity_id, external_id, metadata=...)
         call_kwargs = call_args[1]  # keyword args
         metadata = call_kwargs["metadata"]
         expected_hash = compute_feedback_hash(content)
