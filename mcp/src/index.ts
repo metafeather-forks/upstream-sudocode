@@ -16,6 +16,7 @@ import {
 } from "./cli-utils.js";
 import {
   resolveProjectById,
+  resolveProjectPath,
 } from "@sudocode-ai/cli/project-discovery";
 
 function showHelp(): void {
@@ -109,7 +110,10 @@ function validateConfig(config: SudocodeMCPServerConfig): void {
 
   // Set workingDir from registry for CLI operations
   if (!config.workingDir) {
-    config.workingDir = resolved.path;
+    const resolvedPath = resolveProjectPath(resolved.sudocodeDir);
+    if (resolvedPath) {
+      config.workingDir = resolvedPath;
+    }
   }
 
   // Set dbPath from registry
@@ -117,7 +121,8 @@ function validateConfig(config: SudocodeMCPServerConfig): void {
     config.dbPath = resolved.dbPath;
   }
 
-  console.error(`[mcp] Resolved project: id=${resolved.projectId}, path=${resolved.path}`);
+  const resolvedPathForLog = resolveProjectPath(resolved.sudocodeDir) || "(unknown)";
+  console.error(`[mcp] Resolved project: id=${resolved.projectId}, path=${resolvedPathForLog}`);
 
   try {
     // Validate and resolve scopes

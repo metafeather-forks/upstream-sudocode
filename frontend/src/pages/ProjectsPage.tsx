@@ -623,7 +623,7 @@ function ProjectCard({ project, isOpen, isCurrent, onOpen, onClose, onDelete }: 
           )}
           {project.favorite && <span className="text-lg text-yellow-500">★</span>}
         </div>
-        <p className="mt-1 truncate text-sm text-muted-foreground">{project.path}</p>
+        <p className="mt-1 truncate text-sm text-muted-foreground">{project.sudocodeDir}</p>
         <div className="mt-1 flex items-center gap-2">
           <TooltipProvider>
             <Tooltip>

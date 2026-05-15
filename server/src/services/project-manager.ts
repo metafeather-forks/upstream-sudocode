@@ -383,8 +383,26 @@ export class ProjectManager {
       });
     }
 
-    // Delegate to openProject using the registry-resolved path
-    return this.openProject(projectInfo.path);
+    // Derive project path from config.local.json back-link in sudocodeDir
+    const localConfigPath = path.join(projectInfo.sudocodeDir, "config.local.json");
+    let projectPath: string;
+    try {
+      const localConfig = JSON.parse(fs.readFileSync(localConfigPath, "utf-8"));
+      if (!localConfig.projectdir) {
+        return Err({
+          type: "PROJECT_NOT_FOUND",
+          message: `No projectdir back-link in ${localConfigPath}`,
+        });
+      }
+      projectPath = localConfig.projectdir;
+    } catch {
+      return Err({
+        type: "PROJECT_NOT_FOUND",
+        message: `Cannot read project path from ${localConfigPath}`,
+      });
+    }
+
+    return this.openProject(projectPath);
   }
 
   /**

@@ -31,6 +31,12 @@ describe("ProjectManager", () => {
     // Create a minimal cache.db file
     const dbPath = path.join(sudocodeDir, "cache.db");
     fs.writeFileSync(dbPath, "");
+
+    // Create config.local.json with projectdir back-link
+    fs.writeFileSync(
+      path.join(sudocodeDir, "config.local.json"),
+      JSON.stringify({ projectdir: testProjectPath })
+    );
   });
 
   afterEach(async () => {
@@ -127,7 +133,7 @@ describe("ProjectManager", () => {
       if (result.ok) {
         const projectInfo = registry.getProject(result.value.id);
         expect(projectInfo).not.toBeNull();
-        expect(projectInfo?.path).toBe(testProjectPath);
+        expect(projectInfo?.sudocodeDir).toBe(path.join(testProjectPath, '.sudocode'));
       }
     });
 
@@ -481,7 +487,7 @@ describe("ProjectManager", () => {
       if (result.ok) {
         const projectInfo = registry.getProject(result.value.id);
         expect(projectInfo).not.toBeNull();
-        expect(projectInfo?.path).toBe(newProjectPath);
+        expect(projectInfo?.name).toBe(path.basename(newProjectPath));
       }
     });
 

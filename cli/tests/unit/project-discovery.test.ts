@@ -39,7 +39,6 @@ describe("Project Discovery", () => {
     "project-a-12345678": {
       id: "project-a-12345678",
       name: "Project A",
-      path: "/Users/testuser/projects/project-a",
       sudocodeDir: "/Users/testuser/projects/project-a/.sudocode",
       registeredAt: "2024-01-01T00:00:00.000Z",
       lastOpenedAt: "2024-01-02T00:00:00.000Z",
@@ -47,7 +46,6 @@ describe("Project Discovery", () => {
     "project-b-87654321": {
       id: "project-b-87654321",
       name: "Project B",
-      path: "/Users/testuser/projects/project-b",
       sudocodeDir: "/Users/testuser/shared-sudocode/project-b",
       registeredAt: "2024-01-01T00:00:00.000Z",
       lastOpenedAt: "2024-01-02T00:00:00.000Z",
@@ -55,7 +53,6 @@ describe("Project Discovery", () => {
     "monorepo-abcd1234": {
       id: "monorepo-abcd1234",
       name: "Monorepo",
-      path: "/Users/testuser/projects/monorepo",
       sudocodeDir: "/Users/testuser/projects/monorepo/.sudocode",
       registeredAt: "2024-01-01T00:00:00.000Z",
       lastOpenedAt: "2024-01-02T00:00:00.000Z",
@@ -63,7 +60,7 @@ describe("Project Discovery", () => {
   };
 
   const mockConfig: ProjectsConfig = {
-    version: 1,
+    version: 2,
     projects: mockProjects,
     recentProjects: ["project-a-12345678", "project-b-87654321"],
     settings: {
@@ -213,10 +210,31 @@ describe("Project Discovery", () => {
     });
   });
 
+  // Mock config.local.json files that map sudocodeDir -> projectdir
+  const mockLocalConfigs: Record<string, string> = {
+    "/Users/testuser/projects/project-a/.sudocode/config.local.json": JSON.stringify({ projectdir: "/Users/testuser/projects/project-a" }),
+    "/Users/testuser/shared-sudocode/project-b/config.local.json": JSON.stringify({ projectdir: "/Users/testuser/projects/project-b" }),
+    "/Users/testuser/projects/monorepo/.sudocode/config.local.json": JSON.stringify({ projectdir: "/Users/testuser/projects/monorepo" }),
+  };
+
+  /**
+   * Setup fs mocks that handle both registry file and config.local.json reads.
+   */
+  function setupFsMocks() {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockImplementation((filePath: any, _encoding?: any) => {
+      const p = String(filePath);
+      if (mockLocalConfigs[p]) {
+        return mockLocalConfigs[p];
+      }
+      // Default: return registry JSON
+      return JSON.stringify(mockConfig);
+    });
+  }
+
   describe("findContainingProject", () => {
     beforeEach(() => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+      setupFsMocks();
     });
 
     it("should return null when registry is not available", () => {
@@ -227,7 +245,7 @@ describe("Project Discovery", () => {
       expect(result).toBeNull();
     });
 
-    it("should find exact match on project path", () => {
+    it("should find exact match on projectdir back-link", () => {
       const result = findContainingProject(
         "/Users/testuser/projects/project-a"
       );
@@ -279,8 +297,7 @@ describe("Project Discovery", () => {
 
   describe("discoverProject", () => {
     beforeEach(() => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+      setupFsMocks();
     });
 
     it("should return registry-exact source for exact path match", () => {
@@ -396,7 +413,6 @@ describe("Project Discovery", () => {
 
       expect(result).not.toBeNull();
       expect(result!.projectId).toBe("project-a-12345678");
-      expect(result!.path).toBe("/Users/testuser/projects/project-a");
       expect(result!.sudocodeDir).toBe("/Users/testuser/projects/project-a/.sudocode");
       expect(result!.dbPath).toBe("/Users/testuser/projects/project-a/.sudocode/cache.db");
       expect(result!.projectInfo).toEqual(mockProjects["project-a-12345678"]);

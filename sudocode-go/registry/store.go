@@ -8,10 +8,11 @@ import (
 )
 
 // ProjectInfo holds metadata for a registered project.
+// Note: path field was removed in version 2. The project path is now
+// derived from the projectdir back-link in config.local.json.
 type ProjectInfo struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
-	Path         string `json:"path"`
 	SudocodeDir  string `json:"sudocodeDir"`
 	RegisteredAt string `json:"registeredAt"`
 	LastOpenedAt string `json:"lastOpenedAt"`
@@ -35,7 +36,7 @@ type ProjectsConfig struct {
 
 func defaultConfig() ProjectsConfig {
 	return ProjectsConfig{
-		Version:        1,
+		Version:        2,
 		Projects:       make(map[string]ProjectInfo),
 		RecentProjects: []string{},
 		Settings: Settings{
@@ -84,6 +85,14 @@ func (s *Store) loadLocked() (ProjectsConfig, error) {
 	if cfg.RecentProjects == nil {
 		cfg.RecentProjects = []string{}
 	}
+
+	// Migrate v1 → v2: bump version (path field is already dropped by the
+	// struct definition — any "path" keys in JSON are silently ignored during
+	// unmarshal). The file will be re-written as v2 on the next Save.
+	if cfg.Version < 2 {
+		cfg.Version = 2
+	}
+
 	return cfg, nil
 }
 

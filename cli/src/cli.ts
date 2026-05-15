@@ -10,7 +10,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { initDatabase } from "./db.js";
 import type Database from "better-sqlite3";
-import { resolveProjectById, type ResolvedProject } from "./project-discovery.js";
+import { resolveProjectById, resolveProjectPath, type ResolvedProject } from "./project-discovery.js";
 
 // Import command handlers
 import {
@@ -126,13 +126,24 @@ function resolveDirectories(opts: { projectId?: string }): void {
     process.exit(1);
   }
 
-  workingDir = resolvedProject.path;
+  const resolvedPath = resolveProjectPath(resolvedProject.sudocodeDir);
+  if (!resolvedPath) {
+    console.error(
+      chalk.red(
+        `Error: Cannot resolve project path from ${resolvedProject.sudocodeDir}/config.local.json\n` +
+        "  The project's config.local.json may be missing or corrupted."
+      )
+    );
+    process.exit(1);
+  }
+
+  workingDir = resolvedPath;
   outputDir = resolvedProject.sudocodeDir;
   dbPath = resolvedProject.dbPath;
 
   if (process.env.DEBUG_CLI) {
     console.error(
-      `[cli] Resolved project: id=${resolvedProject.projectId}, path=${resolvedProject.path}`
+      `[cli] Resolved project: id=${resolvedProject.projectId}, path=${resolvedPath}`
     );
   }
 }

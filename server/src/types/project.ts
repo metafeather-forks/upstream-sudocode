@@ -7,8 +7,6 @@ export interface ProjectInfo {
   id: string
   /** Human-readable project name (derived from repository name) */
   name: string
-  /** Absolute path to the project root directory */
-  path: string
   /** Absolute path to the .sudocode directory */
   sudocodeDir: string
   /** ISO timestamp when project was first registered */

@@ -55,7 +55,6 @@ func TestStoreRoundTrip(t *testing.T) {
 	cfg.Projects["test-1234"] = ProjectInfo{
 		ID:           "test-1234",
 		Name:         "test",
-		Path:         "/tmp/test",
 		SudocodeDir:  "/tmp/test/.sudocode",
 		RegisteredAt: "2025-01-01T00:00:00Z",
 		LastOpenedAt: "2025-01-01T00:00:00Z",
@@ -73,8 +72,46 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Errorf("currentProjectId = %q, want %q", loaded.CurrentProjectID, "test-1234")
 	}
 	p := loaded.Projects["test-1234"]
-	if p.Name != "test" || p.Path != "/tmp/test" {
+	if p.Name != "test" {
 		t.Errorf("project mismatch: %+v", p)
+	}
+}
+
+func TestStoreV1Migration(t *testing.T) {
+	dir := t.TempDir()
+	v1JSON := `{
+		"version": 1,
+		"projects": {
+			"proj-1": {
+				"id": "proj-1",
+				"name": "myproject",
+				"path": "/home/user/myproject",
+				"sudocodeDir": "/home/user/myproject/.sudocode",
+				"registeredAt": "2025-01-01T00:00:00Z",
+				"lastOpenedAt": "2025-01-01T00:00:00Z",
+				"favorite": false
+			}
+		},
+		"recentProjects": ["proj-1"],
+		"currentProjectId": "proj-1",
+		"settings": {"maxRecentProjects": 10, "autoOpenLastProject": false}
+	}`
+	os.WriteFile(filepath.Join(dir, "projects.json"), []byte(v1JSON), 0o644)
+
+	s := NewStore(dir)
+	cfg, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Version != 2 {
+		t.Errorf("version = %d, want 2", cfg.Version)
+	}
+	p := cfg.Projects["proj-1"]
+	if p.Name != "myproject" {
+		t.Errorf("name = %q, want %q", p.Name, "myproject")
+	}
+	if p.SudocodeDir != "/home/user/myproject/.sudocode" {
+		t.Errorf("sudocodeDir = %q", p.SudocodeDir)
 	}
 }
 
@@ -86,7 +123,7 @@ func TestStoreCorruptedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Version != 1 {
+	if cfg.Version != 2 {
 		t.Errorf("expected default config on corruption, got version %d", cfg.Version)
 	}
 }
@@ -101,9 +138,6 @@ func TestOpen(t *testing.T) {
 	resp, err := Open(ctx, &OpenParams{Path: projDir})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp.Project.Path != projDir {
-		t.Errorf("path = %q, want %q", resp.Project.Path, projDir)
 	}
 	if resp.Project.ID == "" {
 		t.Error("id is empty")
@@ -282,8 +316,8 @@ func TestRecent(t *testing.T) {
 		t.Fatalf("recent = %d, want 2", len(resp.Projects))
 	}
 	// Most recent first
-	if resp.Projects[0].Path != dir2 {
-		t.Errorf("most recent should be dir2, got %q", resp.Projects[0].Path)
+	if resp.Projects[0].Name != filepath.Base(dir2) {
+		t.Errorf("most recent should be dir2, got %q", resp.Projects[0].Name)
 	}
 }
 

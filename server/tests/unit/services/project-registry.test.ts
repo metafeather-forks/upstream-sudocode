@@ -37,7 +37,7 @@ describe('ProjectRegistry', () => {
       expect(fs.existsSync(configPath)).toBe(true)
 
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ProjectsConfig
-      expect(config.version).toBe(1)
+      expect(config.version).toBe(2)
       expect(config.projects).toEqual({})
       expect(config.recentProjects).toEqual([])
       expect(config.settings.maxRecentProjects).toBe(10)
@@ -146,7 +146,6 @@ describe('ProjectRegistry', () => {
 
       expect(projectInfo.id).toBeTruthy()
       expect(projectInfo.name).toBe('test-project')
-      expect(projectInfo.path).toBe(projectPath)
       expect(projectInfo.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
       expect(projectInfo.registeredAt).toBeTruthy()
       expect(projectInfo.favorite).toBe(false)
@@ -179,7 +178,7 @@ describe('ProjectRegistry', () => {
 
       const recent = registry.getRecentProjects()
       expect(recent).toHaveLength(1)
-      expect(recent[0].path).toBe(projectPath)
+      expect(recent[0].id).toBe(registry.generateProjectId(projectPath))
     })
   })
 
@@ -227,7 +226,6 @@ describe('ProjectRegistry', () => {
       const retrieved = registry.getProject(registered.id)
       expect(retrieved).not.toBeNull()
       expect(retrieved?.id).toBe(registered.id)
-      expect(retrieved?.path).toBe(projectPath)
     })
 
     it('should return null for non-existent project', async () => {
@@ -469,7 +467,7 @@ describe('ProjectRegistry', () => {
 
         const all = registry2.getAllProjects()
         expect(all).toHaveLength(1)
-        expect(all[0].path).toBe(projectPath)
+        expect(all[0].id).toBe(registry.generateProjectId(projectPath))
       } finally {
         // Clean up
         if (fs.existsSync(testTempDir)) {
@@ -678,7 +676,6 @@ describe('ProjectRegistry', () => {
 
       // SUDOCODE_DIR should NOT be used - falls back to default
       expect(projectInfo.sudocodeDir).toBe(path.join(projectPath, '.sudocode'))
-      expect(projectInfo.path).toBe(projectPath)
     })
 
     it('should handle paths with spaces in customSudocodeDir', async () => {
@@ -731,7 +728,6 @@ describe('ProjectRegistry', () => {
       const found = registry.getProjectById(registered.id)
       expect(found).not.toBeNull()
       expect(found?.id).toBe(registered.id)
-      expect(found?.path).toBe(projectPath)
       expect(found?.sudocodeDir).toBe(registered.sudocodeDir)
     })
 

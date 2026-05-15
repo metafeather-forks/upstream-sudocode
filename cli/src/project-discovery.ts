@@ -21,7 +21,6 @@ import * as crypto from "crypto";
 export interface ProjectInfo {
   id: string;
   name: string;
-  path: string;
   sudocodeDir: string;
   registeredAt: string;
   lastOpenedAt: string;
@@ -141,13 +140,31 @@ export function generateProjectId(projectPath: string): string {
 }
 
 /**
+ * Resolve the project path for a registered project by reading
+ * the projectdir back-link from config.local.json in the project's sudocodeDir.
+ * Returns null if the back-link is not set or the file doesn't exist.
+ */
+export function resolveProjectPath(sudocodeDir: string): string | null {
+  try {
+    const localConfigPath = path.join(sudocodeDir, "config.local.json");
+    if (!fs.existsSync(localConfigPath)) {
+      return null;
+    }
+    const data = JSON.parse(fs.readFileSync(localConfigPath, "utf-8"));
+    return data.projectdir || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Find a registered project containing the given path.
  * Returns null if not found in registry.
  *
  * Lookup priority:
- * 1. Exact match on project.path
- * 2. Exact match on project.sudocodeDir
- * 3. Ancestor match (longest prefix wins)
+ * 1. Exact match on project's sudocodeDir
+ * 2. Exact match on projectdir back-link (from config.local.json)
+ * 3. Ancestor match (longest prefix of projectdir wins)
  */
 export function findContainingProject(
   fromPath: string,
@@ -160,31 +177,37 @@ export function findContainingProject(
 
   const normalizedPath = normalizePath(fromPath);
 
-  // 1. Check for exact match on project.path
-  for (const project of Object.values(registry)) {
-    if (project.path && normalizePath(project.path) === normalizedPath) {
-      return project;
-    }
-  }
-
-  // 2. Check for exact match on project.sudocodeDir
+  // 1. Check for exact match on project.sudocodeDir
   for (const project of Object.values(registry)) {
     if (project.sudocodeDir && normalizePath(project.sudocodeDir) === normalizedPath) {
       return project;
     }
   }
 
-  // 3. Find longest prefix match (ancestor)
-  // Sort by path length descending to find most specific match first
-  const sortedProjects = Object.values(registry)
-    .filter((p) => p.path)
-    .sort((a, b) => b.path.length - a.path.length);
+  // 2. Check for exact match on projectdir back-link
+  for (const project of Object.values(registry)) {
+    const projectPath = resolveProjectPath(project.sudocodeDir);
+    if (projectPath && normalizePath(projectPath) === normalizedPath) {
+      return project;
+    }
+  }
 
-  for (const project of sortedProjects) {
-    const projectPath = normalizePath(project.path);
+  // 3. Find longest prefix match (ancestor) using projectdir back-links
+  const projectsWithPaths: Array<{ project: ProjectInfo; projectPath: string }> = [];
+  for (const project of Object.values(registry)) {
+    const projectPath = resolveProjectPath(project.sudocodeDir);
+    if (projectPath) {
+      projectsWithPaths.push({ project, projectPath });
+    }
+  }
+  // Sort by path length descending to find most specific match first
+  projectsWithPaths.sort((a, b) => b.projectPath.length - a.projectPath.length);
+
+  for (const { project, projectPath } of projectsWithPaths) {
+    const normalizedProjectPath = normalizePath(projectPath);
     if (
-      normalizedPath === projectPath ||
-      normalizedPath.startsWith(projectPath + path.sep)
+      normalizedPath === normalizedProjectPath ||
+      normalizedPath.startsWith(normalizedProjectPath + path.sep)
     ) {
       return project;
     }
@@ -198,7 +221,6 @@ export function findContainingProject(
  */
 export interface ResolvedProject {
   projectId: string;
-  path: string;
   sudocodeDir: string;
   dbPath: string;
   projectInfo: ProjectInfo;
@@ -227,7 +249,6 @@ export function resolveProjectById(
 
   return {
     projectId: project.id,
-    path: project.path,
     sudocodeDir: project.sudocodeDir,
     dbPath: path.join(project.sudocodeDir, "cache.db"),
     projectInfo: project,
@@ -258,10 +279,11 @@ export function discoverProject(
     if (registry) {
       for (const project of Object.values(registry)) {
         if (project.sudocodeDir && normalizePath(project.sudocodeDir) === normalizedOverride) {
+          const resolvedPath = resolveProjectPath(project.sudocodeDir) || path.dirname(normalizedOverride);
           return {
             projectId: project.id,
             sudocodeDir: normalizedOverride,
-            projectPath: project.path,
+            projectPath: resolvedPath,
             source: "registry-sudocode-dir",
             projectInfo: project,
           };
@@ -286,7 +308,8 @@ export function discoverProject(
 
   if (project) {
     // Determine source type based on how we matched
-    const normalizedProjectPath = normalizePath(project.path);
+    const resolvedPath = resolveProjectPath(project.sudocodeDir) || path.dirname(project.sudocodeDir);
+    const normalizedProjectPath = normalizePath(resolvedPath);
     let source: DiscoveryResult["source"];
 
     if (normalizedFromPath === normalizedProjectPath) {
@@ -300,7 +323,7 @@ export function discoverProject(
     return {
       projectId: project.id,
       sudocodeDir: project.sudocodeDir,
-      projectPath: project.path,
+      projectPath: resolvedPath,
       source,
       projectInfo: project,
     };

@@ -141,7 +141,6 @@ func Open(ctx context.Context, params *OpenParams) (*OpenResponse, error) {
 			p = ProjectInfo{
 				ID:           id,
 				Name:         filepath.Base(absPath),
-				Path:         absPath,
 				SudocodeDir:  filepath.Join(absPath, ".sudocode"),
 				RegisteredAt: now,
 			}
@@ -268,7 +267,6 @@ func Init(ctx context.Context, params *InitParams) (*InitResponse, error) {
 		c.Projects[id] = ProjectInfo{
 			ID:           id,
 			Name:         name,
-			Path:         absPath,
 			SudocodeDir:  sudocodeDir,
 			RegisteredAt: now,
 			LastOpenedAt: now,

@@ -8,7 +8,7 @@ import { Err, Ok } from '../types/project.js'
 
 function getDefaultConfig(): ProjectsConfig {
   return {
-    version: 1,
+    version: 2,
     projects: {},
     recentProjects: [],
     settings: {
@@ -70,6 +70,16 @@ export class ProjectRegistry {
           // Validate config structure
           if (!this.config.version || !this.config.projects || !this.config.settings) {
             throw new Error('Invalid config structure')
+          }
+
+          // Migrate v1 → v2: strip path field from projects
+          if (this.config.version < 2) {
+            for (const project of Object.values(this.config.projects)) {
+              delete (project as any).path
+            }
+            this.config.version = 2
+            await this.save()
+            console.log(`[registry] load: migrated config from v1 to v2`)
           }
           
           const projectCount = Object.keys(this.config.projects).length
@@ -209,7 +219,6 @@ export class ProjectRegistry {
     const projectInfo: ProjectInfo = {
       id: projectId,
       name: path.basename(projectPath),
-      path: projectPath,
       sudocodeDir,
       registeredAt: now,
       lastOpenedAt: now,
@@ -266,7 +275,7 @@ export class ProjectRegistry {
   getProject(projectId: string): ProjectInfo | null {
     const project = this.config.projects[projectId] || null
     if (project) {
-      console.log(`[registry] getProject: projectId=${projectId}, workingDir=${project.path}, sudocodeDir=${project.sudocodeDir}`)
+      console.log(`[registry] getProject: projectId=${projectId}, sudocodeDir=${project.sudocodeDir}`)
     } else {
       console.log(`[registry] getProject: projectId=${projectId} not found`)
     }

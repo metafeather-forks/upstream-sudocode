@@ -37,11 +37,13 @@ describe("Projects API Routes", () => {
     const sudocodeDir1 = path.join(testProjectPath1, ".sudocode");
     fs.mkdirSync(sudocodeDir1, { recursive: true });
     fs.writeFileSync(path.join(sudocodeDir1, "cache.db"), "");
+    fs.writeFileSync(path.join(sudocodeDir1, "config.local.json"), JSON.stringify({ projectdir: testProjectPath1 }));
 
     testProjectPath2 = path.join(tempDir, "test-project-2");
     const sudocodeDir2 = path.join(testProjectPath2, ".sudocode");
     fs.mkdirSync(sudocodeDir2, { recursive: true });
     fs.writeFileSync(path.join(sudocodeDir2, "cache.db"), "");
+    fs.writeFileSync(path.join(sudocodeDir2, "config.local.json"), JSON.stringify({ projectdir: testProjectPath2 }));
   });
 
   afterEach(async () => {
@@ -70,7 +72,7 @@ describe("Projects API Routes", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(2);
       expect(response.body.data[0]).toHaveProperty("id");
-      expect(response.body.data[0]).toHaveProperty("path");
+      expect(response.body.data[0]).toHaveProperty("sudocodeDir");
       expect(response.body.data[0]).toHaveProperty("name");
     });
   });
@@ -120,8 +122,8 @@ describe("Projects API Routes", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(2);
       // Most recent should be first
-      expect(response.body.data[0].path).toBe(testProjectPath2);
-      expect(response.body.data[1].path).toBe(testProjectPath1);
+      expect(response.body.data[0].name).toBe(path.basename(testProjectPath2));
+      expect(response.body.data[1].name).toBe(path.basename(testProjectPath1));
     });
   });
 
@@ -388,7 +390,7 @@ describe("Projects API Routes", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty("id", projectInfo.id);
-      expect(response.body.data).toHaveProperty("path", testProjectPath1);
+      expect(response.body.data).toHaveProperty("sudocodeDir");
       // When not open, the route returns { isOpen: false } via the GET endpoint logic
       expect(response.body.data.isOpen).toBe(false);
     });
@@ -505,7 +507,7 @@ describe("Projects API Routes", () => {
       const projectId = response.body.data.id;
       const projectInfo = registry.getProject(projectId);
       expect(projectInfo).not.toBeNull();
-      expect(projectInfo?.path).toBe(newProjectPath);
+      expect(projectInfo?.name).toBe(path.basename(newProjectPath));
     });
 
     it("should track initialized project as open", async () => {
