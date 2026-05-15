@@ -1,8 +1,14 @@
 /**
  * Project Discovery Module
  *
- * Discovers the correct project and sudocodeDir from any path by reading
- * the ~/.config/sudocode/projects.json registry directly (offline-first).
+ * Discovers the correct project and sudocodeDir using a two-phase strategy:
+ *
+ * 1. **Primary**: Walk parent directories looking for `.sudocode` file/dir
+ *    (like Git walks for `.git`). Resolve the sudocode data directory,
+ *    read `config.json` to get `projectId`.
+ *
+ * 2. **Fallback**: If `.sudocode` not found, scan the projects.json registry
+ *    for matching `projectdir` back-links.
  *
  * This enables the CLI to work correctly when:
  * - Called from nested directories within a project
@@ -14,6 +20,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
+import { resolveSudocodeDir } from "./sudocode-file.js";
 
 /**
  * Project information from registry
@@ -47,7 +54,7 @@ export interface DiscoveryResult {
   projectId: string;
   sudocodeDir: string;
   projectPath: string;
-  source: "registry-exact" | "registry-sudocode-dir" | "registry-ancestor" | "generated";
+  source: "sudocode-file" | "registry-exact" | "registry-sudocode-dir" | "registry-ancestor" | "generated";
   projectInfo?: ProjectInfo;
   warning?: string;
 }
@@ -158,18 +165,80 @@ export function resolveProjectPath(sudocodeDir: string): string | null {
 }
 
 /**
+ * Walk parent directories from `fromPath` looking for a `.sudocode` file or directory,
+ * similar to how Git searches for `.git`.
+ *
+ * Returns the repo root path (directory containing `.sudocode`) and the resolved
+ * sudocode data directory, or null if not found.
+ */
+export function findSudocodeRoot(fromPath: string): { repoRoot: string; sudocodeDir: string } | null {
+  let current = path.resolve(fromPath);
+
+  // Walk up until we hit the filesystem root
+  const root = path.parse(current).root;
+  while (current !== root) {
+    try {
+      const resolved = resolveSudocodeDir(current);
+      if (resolved !== null) {
+        return { repoRoot: current, sudocodeDir: resolved };
+      }
+    } catch {
+      // Malformed .sudocode file — skip this directory
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return null;
+}
+
+/**
+ * Read the projectId from a sudocode data directory's config.json.
+ * Returns null if the file doesn't exist or projectId is not set.
+ */
+export function readProjectIdFromConfig(sudocodeDir: string): string | null {
+  try {
+    const configPath = path.join(sudocodeDir, "config.json");
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+    const data = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    return data.projectId || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Find a registered project containing the given path.
  * Returns null if not found in registry.
  *
  * Lookup priority:
- * 1. Exact match on project's sudocodeDir
- * 2. Exact match on projectdir back-link (from config.local.json)
- * 3. Ancestor match (longest prefix of projectdir wins)
+ * 1. Walk parent dirs for .sudocode file/dir (primary — like git)
+ * 2. Exact match on project's sudocodeDir in registry
+ * 3. Exact match on projectdir back-link (from config.local.json)
+ * 4. Ancestor match (longest prefix of projectdir wins)
  */
 export function findContainingProject(
   fromPath: string,
   configPath?: string
 ): ProjectInfo | null {
+  // Phase 1: Walk parent dirs for .sudocode (primary mechanism)
+  const sudocodeRoot = findSudocodeRoot(fromPath);
+  if (sudocodeRoot) {
+    // Read projectId from config.json in the sudocode data dir
+    const projectId = readProjectIdFromConfig(sudocodeRoot.sudocodeDir);
+    if (projectId) {
+      // Try to find matching project in registry
+      const registry = loadRegistry(configPath);
+      if (registry && registry[projectId]) {
+        return registry[projectId];
+      }
+    }
+  }
+
+  // Phase 2: Fallback to registry-based lookup
   const registry = loadRegistry(configPath);
   if (!registry) {
     return null;
@@ -177,14 +246,14 @@ export function findContainingProject(
 
   const normalizedPath = normalizePath(fromPath);
 
-  // 1. Check for exact match on project.sudocodeDir
+  // 2a. Check for exact match on project.sudocodeDir
   for (const project of Object.values(registry)) {
     if (project.sudocodeDir && normalizePath(project.sudocodeDir) === normalizedPath) {
       return project;
     }
   }
 
-  // 2. Check for exact match on projectdir back-link
+  // 2b. Check for exact match on projectdir back-link
   for (const project of Object.values(registry)) {
     const projectPath = resolveProjectPath(project.sudocodeDir);
     if (projectPath && normalizePath(projectPath) === normalizedPath) {
@@ -192,7 +261,7 @@ export function findContainingProject(
     }
   }
 
-  // 3. Find longest prefix match (ancestor) using projectdir back-links
+  // 2c. Find longest prefix match (ancestor) using projectdir back-links
   const projectsWithPaths: Array<{ project: ProjectInfo; projectPath: string }> = [];
   for (const project of Object.values(registry)) {
     const projectPath = resolveProjectPath(project.sudocodeDir);
@@ -259,9 +328,14 @@ export function resolveProjectById(
  * Discover project from any path.
  * Single call returns projectId, sudocodeDir, and projectPath.
  *
+ * Discovery flow:
+ * 1. Walk parent dirs for `.sudocode` file/dir → read config.json → get projectId
+ * 2. Fallback: scan registry for matching projectdir back-links
+ * 3. Last resort: generate ID from path
+ *
  * @param fromPath - Path to discover project from (will be normalized)
  * @param configPath - Optional custom registry path
- * @param sudocodeDirOverride - Optional override (e.g., from SUDOCODE_DIR env var)
+ * @param sudocodeDirOverride - Optional override (e.g., from SUDOCODE_DIR env var) — deprecated
  */
 export function discoverProject(
   fromPath: string,
@@ -303,7 +377,35 @@ export function discoverProject(
     };
   }
 
-  // Try to find containing project in registry
+  // Phase 1: Walk parent dirs for .sudocode file/dir (primary mechanism)
+  const sudocodeRoot = findSudocodeRoot(fromPath);
+  if (sudocodeRoot) {
+    const projectId = readProjectIdFromConfig(sudocodeRoot.sudocodeDir);
+    if (projectId) {
+      // Try to enrich with registry info
+      const registry = loadRegistry(configPath);
+      const projectInfo = registry?.[projectId] || undefined;
+
+      return {
+        projectId,
+        sudocodeDir: sudocodeRoot.sudocodeDir,
+        projectPath: sudocodeRoot.repoRoot,
+        source: "sudocode-file",
+        projectInfo,
+      };
+    }
+
+    // .sudocode exists but no projectId in config — use generated ID
+    return {
+      projectId: generateProjectId(sudocodeRoot.repoRoot),
+      sudocodeDir: sudocodeRoot.sudocodeDir,
+      projectPath: sudocodeRoot.repoRoot,
+      source: "sudocode-file",
+      warning: "Found .sudocode but config.json has no projectId",
+    };
+  }
+
+  // Phase 2: Fallback to registry-based discovery
   const project = findContainingProject(fromPath, configPath);
 
   if (project) {

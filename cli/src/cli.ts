@@ -10,7 +10,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { initDatabase } from "./db.js";
 import type Database from "better-sqlite3";
-import { resolveProjectById, resolveProjectPath, type ResolvedProject } from "./project-discovery.js";
+import { resolveProjectById, resolveProjectPath, discoverProject, type ResolvedProject } from "./project-discovery.js";
 
 // Import command handlers
 import {
@@ -92,58 +92,86 @@ let workingDir: string = "";
 let resolvedProject: ResolvedProject | null = null;
 
 /**
- * Resolve the working directory and sudocode directory from explicit --project-id.
+ * Resolve the working directory and sudocode directory.
  *
- * Project-scoped operations require a valid --project-id that exists in the
- * project registry (~/.config/sudocode/projects.json).
+ * Resolution order:
+ * 1. Explicit --project-id flag → registry lookup
+ * 2. Auto-discover from cwd via .sudocode file/dir walking
  *
- * No fallback from cwd, env vars, path ancestor matching, or generated IDs.
- *
- * @param opts - Command options with projectId flag
+ * @param opts - Command options with optional projectId flag
  */
 function resolveDirectories(opts: { projectId?: string }): void {
-  if (!opts.projectId) {
+  // 1. Explicit --project-id takes priority
+  if (opts.projectId) {
+    resolvedProject = resolveProjectById(opts.projectId);
+
+    if (!resolvedProject) {
+      console.error(
+        chalk.red(
+          `Error: Project not found in registry: ${opts.projectId}\n` +
+          "  Use 'sudocode config project-id [path]' to find valid project IDs.\n" +
+          "  Use 'sudocode init' to register a new project."
+        )
+      );
+      process.exit(1);
+    }
+
+    const resolvedPath = resolveProjectPath(resolvedProject.sudocodeDir);
+    if (!resolvedPath) {
+      console.error(
+        chalk.red(
+          `Error: Cannot resolve project path from ${resolvedProject.sudocodeDir}/config.local.json\n` +
+          "  The project's config.local.json may be missing or corrupted."
+        )
+      );
+      process.exit(1);
+    }
+
+    workingDir = resolvedPath;
+    outputDir = resolvedProject.sudocodeDir;
+    dbPath = resolvedProject.dbPath;
+
+    if (process.env.DEBUG_CLI) {
+      console.error(
+        `[cli] Resolved project (explicit): id=${resolvedProject.projectId}, path=${resolvedPath}`
+      );
+    }
+    return;
+  }
+
+  // 2. Auto-discover from cwd via .sudocode file/dir
+  const discovery = discoverProject(process.cwd());
+
+  if (discovery.source === "generated") {
     console.error(
       chalk.red(
-        "Error: --project-id is required for project-scoped commands.\n" +
-        "  Use 'sudocode config project-id [path]' to find your project ID.\n" +
-        "  Use 'sudocode init' to create a new project."
+        "Error: No project found. Could not find .sudocode in current or parent directories.\n" +
+        "  Use 'sudocode init' to create a new project.\n" +
+        "  Or use '--project-id <id>' to specify a project explicitly."
       )
     );
     process.exit(1);
   }
 
-  resolvedProject = resolveProjectById(opts.projectId);
-
-  if (!resolvedProject) {
-    console.error(
-      chalk.red(
-        `Error: Project not found in registry: ${opts.projectId}\n` +
-        "  Use 'sudocode config project-id [path]' to find valid project IDs.\n" +
-        "  Use 'sudocode init' to register a new project."
-      )
-    );
-    process.exit(1);
-  }
-
-  const resolvedPath = resolveProjectPath(resolvedProject.sudocodeDir);
-  if (!resolvedPath) {
-    console.error(
-      chalk.red(
-        `Error: Cannot resolve project path from ${resolvedProject.sudocodeDir}/config.local.json\n` +
-        "  The project's config.local.json may be missing or corrupted."
-      )
-    );
-    process.exit(1);
-  }
-
-  workingDir = resolvedPath;
-  outputDir = resolvedProject.sudocodeDir;
-  dbPath = resolvedProject.dbPath;
+  workingDir = discovery.projectPath;
+  outputDir = discovery.sudocodeDir;
+  dbPath = path.join(discovery.sudocodeDir, "cache.db");
+  resolvedProject = {
+    projectId: discovery.projectId,
+    sudocodeDir: discovery.sudocodeDir,
+    dbPath: path.join(discovery.sudocodeDir, "cache.db"),
+    projectInfo: discovery.projectInfo || {
+      id: discovery.projectId,
+      name: path.basename(discovery.projectPath),
+      sudocodeDir: discovery.sudocodeDir,
+      registeredAt: "",
+      lastOpenedAt: "",
+    },
+  };
 
   if (process.env.DEBUG_CLI) {
     console.error(
-      `[cli] Resolved project: id=${resolvedProject.projectId}, path=${resolvedPath}`
+      `[cli] Resolved project (auto): id=${discovery.projectId}, path=${discovery.projectPath}, source=${discovery.source}`
     );
   }
 }
@@ -182,7 +210,7 @@ program
   .name("sudocode")
   .description("sudocode - git-native agentic context management")
   .version(VERSION)
-  .option("--project-id <id>", "Project ID from registry (required for project-scoped commands)")
+  .option("--project-id <id>", "Project ID from registry (auto-discovered from .sudocode if omitted)")
   .option("--json", "Output in JSON format")
   .hook("preAction", (thisCommand: Command, actionCommand: Command) => {
     // Get global options

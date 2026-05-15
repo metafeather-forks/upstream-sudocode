@@ -132,7 +132,28 @@ func Open(ctx context.Context, params *OpenParams) (*OpenResponse, error) {
 		return nil, fmt.Errorf("path not found or not a directory: %s", absPath)
 	}
 
-	id := GenerateProjectID(absPath)
+	// Resolve .sudocode file/dir to find the actual sudocode data directory
+	resolvedDir, err := sudocodefile.ResolveSudocodeDir(absPath)
+
+	var sudocodeDir string
+	var id string
+
+	if err == nil && resolvedDir != "" {
+		// .sudocode found — read projectId from config.json
+		sudocodeDir = resolvedDir
+		projCfg, cfgErr := sync.ReadConfig(sudocodeDir)
+		if cfgErr == nil && projCfg.ProjectID != "" {
+			id = projCfg.ProjectID
+		} else {
+			// Fallback: generate from path
+			id = GenerateProjectID(absPath)
+		}
+	} else {
+		// No .sudocode found — fallback to path-based generation
+		id = GenerateProjectID(absPath)
+		sudocodeDir = filepath.Join(absPath, ".sudocode")
+	}
+
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	cfg, err := store.Update(func(c *ProjectsConfig) error {
@@ -141,7 +162,7 @@ func Open(ctx context.Context, params *OpenParams) (*OpenResponse, error) {
 			p = ProjectInfo{
 				ID:           id,
 				Name:         filepath.Base(absPath),
-				SudocodeDir:  filepath.Join(absPath, ".sudocode"),
+				SudocodeDir:  sudocodeDir,
 				RegisteredAt: now,
 			}
 		}
@@ -305,15 +326,28 @@ func Validate(ctx context.Context, params *ValidateParams) (*ValidateResponse, e
 		return &ValidateResponse{Valid: false, ErrorMessage: "path not found or not a directory"}, nil
 	}
 
-	sudocodeDir := filepath.Join(absPath, ".sudocode")
-	_, err = os.Stat(sudocodeDir)
-	hasSudocode := err == nil
+	// Resolve .sudocode file/dir
+	resolvedDir, resolveErr := sudocodefile.ResolveSudocodeDir(absPath)
+	hasSudocode := resolveErr == nil && resolvedDir != ""
 
-	id := GenerateProjectID(absPath)
+	// Try to read projectId from config.json
+	var projectID string
+	if hasSudocode {
+		projCfg, cfgErr := sync.ReadConfig(resolvedDir)
+		if cfgErr == nil && projCfg.ProjectID != "" {
+			projectID = projCfg.ProjectID
+		}
+	}
+
+	// Fallback: generate from path
+	if projectID == "" {
+		projectID = GenerateProjectID(absPath)
+	}
+
 	return &ValidateResponse{
 		Valid:       true,
 		HasSudocode: hasSudocode,
-		ProjectID:   id,
+		ProjectID:   projectID,
 	}, nil
 }
 

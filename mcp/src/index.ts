@@ -6,6 +6,7 @@
 
 import { SudocodeMCPServer } from "./server.js";
 import { SudocodeMCPServerConfig } from "./types.js";
+import * as path from "path";
 import {
   resolveScopes,
   hasExtendedScopes,
@@ -17,6 +18,7 @@ import {
 import {
   resolveProjectById,
   resolveProjectPath,
+  discoverProject,
 } from "@sudocode-ai/cli/project-discovery";
 
 function showHelp(): void {
@@ -82,14 +84,25 @@ function validateConfig(config: SudocodeMCPServerConfig): void {
     config.serverUrl = process.env.SUDOCODE_SERVER_URL;
   }
 
-  // Require --project-id for project-bound operations
+  // Require --project-id for project-bound operations, or auto-discover
   if (!config.projectId) {
-    console.error(
-      "Error: --project-id is required for project-bound MCP operations.\n" +
-      "  Use 'sudocode config project-id [path]' to find your project ID.\n" +
-      "  Use 'sudocode init' to create a new project."
-    );
-    process.exit(1);
+    // Auto-discover from cwd
+    const discovery = discoverProject(process.cwd());
+    if (discovery.source !== "generated") {
+      config.projectId = discovery.projectId;
+      if (!config.sudocodeDir) config.sudocodeDir = discovery.sudocodeDir;
+      if (!config.workingDir) config.workingDir = discovery.projectPath;
+      if (!config.dbPath) config.dbPath = path.join(discovery.sudocodeDir, "cache.db");
+      console.error(`[mcp] Auto-discovered project: id=${discovery.projectId}, source=${discovery.source}`);
+    } else {
+      console.error(
+        "Error: --project-id is required for project-bound MCP operations.\n" +
+        "  No .sudocode found in current or parent directories.\n" +
+        "  Use 'sudocode config project-id [path]' to find your project ID.\n" +
+        "  Use 'sudocode init' to create a new project."
+      );
+      process.exit(1);
+    }
   }
 
   // Resolve project from registry

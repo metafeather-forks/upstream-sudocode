@@ -9,6 +9,8 @@ import * as os from "os";
 import {
   discoverProject,
   findContainingProject,
+  findSudocodeRoot,
+  readProjectIdFromConfig,
   loadRegistry,
   generateProjectId,
   getConfigDir,
@@ -20,6 +22,13 @@ import {
 
 // Mock fs module
 vi.mock("fs");
+
+// Mock sudocode-file module
+vi.mock("../../src/sudocode-file.js", () => ({
+  resolveSudocodeDir: vi.fn(() => null),
+}));
+
+import { resolveSudocodeDir } from "../../src/sudocode-file.js";
 
 // Mock os module for homedir
 vi.mock("os", async () => {
@@ -399,6 +408,210 @@ describe("Project Discovery", () => {
         expect(result.source).toBe("registry-exact");
         expect(result.projectId).toBe("project-a-12345678");
       });
+    });
+  });
+
+  describe("findSudocodeRoot", () => {
+    it("should return null when no .sudocode found in any parent", () => {
+      vi.mocked(resolveSudocodeDir).mockReturnValue(null);
+
+      const result = findSudocodeRoot("/Users/testuser/projects/some-dir");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return repoRoot and sudocodeDir when .sudocode found", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/my-project") {
+          return "/Users/testuser/projects/my-project/.sudocode";
+        }
+        return null;
+      });
+
+      const result = findSudocodeRoot("/Users/testuser/projects/my-project/src/lib");
+
+      expect(result).toEqual({
+        repoRoot: "/Users/testuser/projects/my-project",
+        sudocodeDir: "/Users/testuser/projects/my-project/.sudocode",
+      });
+    });
+
+    it("should find .sudocode in ancestor directory", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects") {
+          return "/Users/testuser/projects/.sudocode";
+        }
+        return null;
+      });
+
+      const result = findSudocodeRoot("/Users/testuser/projects/deep/nested/path");
+
+      expect(result).toEqual({
+        repoRoot: "/Users/testuser/projects",
+        sudocodeDir: "/Users/testuser/projects/.sudocode",
+      });
+    });
+
+    it("should return closest .sudocode (not a more distant ancestor)", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/mono/packages/app") {
+          return "/Users/testuser/projects/mono/packages/app/.sudocode";
+        }
+        if (dir === "/Users/testuser/projects/mono") {
+          return "/Users/testuser/projects/mono/.sudocode";
+        }
+        return null;
+      });
+
+      const result = findSudocodeRoot("/Users/testuser/projects/mono/packages/app/src");
+
+      expect(result).toEqual({
+        repoRoot: "/Users/testuser/projects/mono/packages/app",
+        sudocodeDir: "/Users/testuser/projects/mono/packages/app/.sudocode",
+      });
+    });
+
+    it("should skip directories where resolveSudocodeDir throws (malformed .sudocode)", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/bad") {
+          throw new Error("malformed .sudocode file");
+        }
+        if (dir === "/Users/testuser/projects") {
+          return "/Users/testuser/projects/.sudocode";
+        }
+        return null;
+      });
+
+      const result = findSudocodeRoot("/Users/testuser/projects/bad/src");
+
+      expect(result).toEqual({
+        repoRoot: "/Users/testuser/projects",
+        sudocodeDir: "/Users/testuser/projects/.sudocode",
+      });
+    });
+  });
+
+  describe("readProjectIdFromConfig", () => {
+    it("should return null when config.json does not exist", () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const result = readProjectIdFromConfig("/some/.sudocode");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return projectId from config.json", () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(
+        JSON.stringify({ projectId: "my-project-abc12345" })
+      );
+
+      const result = readProjectIdFromConfig("/some/.sudocode");
+
+      expect(result).toBe("my-project-abc12345");
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        "/some/.sudocode/config.json",
+        "utf-8"
+      );
+    });
+
+    it("should return null when config.json has no projectId", () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ other: "data" }));
+
+      const result = readProjectIdFromConfig("/some/.sudocode");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null for invalid JSON in config.json", () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue("not json");
+
+      const result = readProjectIdFromConfig("/some/.sudocode");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("discoverProject via .sudocode file", () => {
+    beforeEach(() => {
+      setupFsMocks();
+    });
+
+    it("should return sudocode-file source when .sudocode found with projectId in config.json", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/project-a") {
+          return "/Users/testuser/projects/project-a/.sudocode";
+        }
+        return null;
+      });
+      // config.json read — need to add to readFileSync mock
+      const origImpl = vi.mocked(fs.readFileSync).getMockImplementation()!;
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any, encoding?: any) => {
+        const p = String(filePath);
+        if (p === "/Users/testuser/projects/project-a/.sudocode/config.json") {
+          return JSON.stringify({ projectId: "project-a-12345678" });
+        }
+        return origImpl(filePath, encoding);
+      });
+
+      const result = discoverProject("/Users/testuser/projects/project-a/src");
+
+      expect(result.source).toBe("sudocode-file");
+      expect(result.projectId).toBe("project-a-12345678");
+      expect(result.sudocodeDir).toBe("/Users/testuser/projects/project-a/.sudocode");
+      expect(result.projectPath).toBe("/Users/testuser/projects/project-a");
+      // Should enrich with registry info
+      expect(result.projectInfo).toEqual(mockProjects["project-a-12345678"]);
+    });
+
+    it("should return sudocode-file with generated ID when .sudocode exists but config.json has no projectId", () => {
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/new-project") {
+          return "/Users/testuser/projects/new-project/.sudocode";
+        }
+        return null;
+      });
+      // config.json doesn't exist for this project
+      const origExistsSync = vi.mocked(fs.existsSync).getMockImplementation()!;
+      vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+        if (String(p) === "/Users/testuser/projects/new-project/.sudocode/config.json") {
+          return false;
+        }
+        return origExistsSync(p);
+      });
+
+      const result = discoverProject("/Users/testuser/projects/new-project");
+
+      expect(result.source).toBe("sudocode-file");
+      expect(result.projectId).toMatch(/^new-project-[a-f0-9]{8}$/);
+      expect(result.sudocodeDir).toBe("/Users/testuser/projects/new-project/.sudocode");
+      expect(result.warning).toBe("Found .sudocode but config.json has no projectId");
+    });
+
+    it("should take priority over registry-based discovery", () => {
+      // .sudocode resolves with a DIFFERENT projectId than registry would match
+      vi.mocked(resolveSudocodeDir).mockImplementation((dir: string) => {
+        if (dir === "/Users/testuser/projects/project-a") {
+          return "/Users/testuser/projects/project-a/.sudocode";
+        }
+        return null;
+      });
+      const origImpl = vi.mocked(fs.readFileSync).getMockImplementation()!;
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any, encoding?: any) => {
+        const p = String(filePath);
+        if (p === "/Users/testuser/projects/project-a/.sudocode/config.json") {
+          return JSON.stringify({ projectId: "custom-override-id" });
+        }
+        return origImpl(filePath, encoding);
+      });
+
+      const result = discoverProject("/Users/testuser/projects/project-a");
+
+      // Should use sudocode-file, not registry-exact
+      expect(result.source).toBe("sudocode-file");
+      expect(result.projectId).toBe("custom-override-id");
     });
   });
 
