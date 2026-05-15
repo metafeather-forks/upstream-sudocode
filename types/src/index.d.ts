@@ -366,6 +366,8 @@ export type StorageMode = "jsonl" | "markdown";
 export interface ProjectConfig {
   /** Source of truth for entity data (default: "jsonl") */
   sourceOfTruth?: StorageMode;
+  /** Stable project identifier (e.g. "vendor-sudocode-b20d41b9") */
+  projectId?: string;
   /** Integration configurations (shared across team) */
   integrations?: IntegrationsConfig;
   /** Telemetry configuration (project-level, git-tracked) */
@@ -388,6 +390,8 @@ export interface LocalConfig {
   editor?: EditorConfig;
   /** Voice configuration (personal preference) */
   voice?: VoiceSettingsConfig;
+  /** Absolute path back to the code repository (back-link for repair) */
+  projectdir?: string;
   /** Telemetry configuration (machine-specific, gitignored) */
   telemetry?: {
     /** OTLP endpoint URL (e.g., Grafana Cloud OTLP gateway) */

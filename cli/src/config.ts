@@ -37,6 +37,7 @@ export interface ConfigLoadResult {
  */
 const PROJECT_CONFIG_FIELDS: (keyof ProjectConfig)[] = [
   "sourceOfTruth",
+  "projectId",
   "integrations",
   "telemetry",
 ];
@@ -48,6 +49,7 @@ const LOCAL_CONFIG_FIELDS: (keyof LocalConfig)[] = [
   "worktree",
   "editor",
   "voice",
+  "projectdir",
   "telemetry",
 ];
 

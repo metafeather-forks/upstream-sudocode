@@ -6,7 +6,7 @@ ordered_shutdown: true
 log_level: info
 
 environment:
-  - "SUDOCODE_PORT=${SUDOCODE_PORT:-3000}"
+  - SUDOCODE_PORT=${SUDOCODE_PORT:-2026}
 
 processes:
   build:
@@ -25,7 +25,7 @@ processes:
       restart: "no"
 
   server:
-    command: "sudocode server --port ${SUDOCODE_PORT:-3000}"
+    command: sudocode server --port ${SUDOCODE_PORT:-2026}
     description: Run the sudocode local server
     depends_on:
       link:
@@ -33,7 +33,7 @@ processes:
     readiness_probe:
       http_get:
         host: 127.0.0.1
-        port: "${SUDOCODE_PORT:-3000}"
+        port: ${SUDOCODE_PORT:-2026}
         path: /health
         scheme: http
       initial_delay_seconds: 3

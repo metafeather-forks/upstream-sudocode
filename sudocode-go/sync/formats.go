@@ -17,9 +17,50 @@ const (
 	StorageModeMarkdown StorageMode = "markdown"
 )
 
-// ProjectConfig represents the .sudocode/config.json file.
+// ProjectConfig represents the .sudocode/config.json file (git-tracked, shared).
 type ProjectConfig struct {
 	SourceOfTruth StorageMode `json:"sourceOfTruth,omitempty"`
+	// ProjectID is a stable project identifier (e.g. "vendor-sudocode-b20d41b9").
+	ProjectID string `json:"projectId,omitempty"`
+}
+
+// LocalConfig represents the .sudocode/config.local.json file (gitignored, machine-local).
+type LocalConfig struct {
+	// ProjectDir is the absolute path back to the code repository.
+	ProjectDir string `json:"projectdir,omitempty"`
+}
+
+const localConfigFile = "config.local.json"
+
+// ReadLocalConfig reads config.local.json from a .sudocode/ directory.
+func ReadLocalConfig(sudocodeDir string) (LocalConfig, error) {
+	p := filepath.Join(sudocodeDir, localConfigFile)
+	data, err := os.ReadFile(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return LocalConfig{}, nil
+		}
+		return LocalConfig{}, fmt.Errorf("sync: read local config: %w", err)
+	}
+
+	var cfg LocalConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return LocalConfig{}, fmt.Errorf("sync: parse local config: %w", err)
+	}
+	return cfg, nil
+}
+
+// WriteLocalConfig writes config.local.json to a .sudocode/ directory.
+func WriteLocalConfig(sudocodeDir string, cfg LocalConfig) error {
+	if err := os.MkdirAll(sudocodeDir, 0o755); err != nil {
+		return fmt.Errorf("sync: mkdir: %w", err)
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("sync: marshal local config: %w", err)
+	}
+	data = append(data, '\n')
+	return os.WriteFile(filepath.Join(sudocodeDir, localConfigFile), data, 0o644)
 }
 
 // DefaultConfig returns a ProjectConfig with default values.
