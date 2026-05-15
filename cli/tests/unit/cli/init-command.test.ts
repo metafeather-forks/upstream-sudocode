@@ -462,4 +462,103 @@ describe("Init Command", () => {
       expect(gitignoreContent).toContain("issues/");
     });
   });
+
+  describe("co-located init with projectId and projectdir", () => {
+    it("should write projectId to config.json and projectdir to config.local.json", async () => {
+      const sudocodeDir = path.join(tempDir, ".sudocode");
+
+      await performInitialization({
+        dir: sudocodeDir,
+        jsonOutput: true,
+      });
+
+      const config = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, "config.json"), "utf8")
+      );
+      expect(config.projectId).toBeDefined();
+      expect(typeof config.projectId).toBe("string");
+      expect(config.projectId.length).toBeGreaterThan(0);
+
+      const localConfig = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, "config.local.json"), "utf8")
+      );
+      expect(localConfig.projectdir).toBe(tempDir);
+    });
+  });
+
+  describe("external mode init", () => {
+    it("should create .sudocode file in repo and data dir at external path", async () => {
+      const externalDataDir = path.join(tempDir, "external-data");
+
+      await performInitialization({
+        dir: path.join(tempDir, ".sudocode"), // repoDir derived from this
+        externalDir: externalDataDir,
+        jsonOutput: true,
+      });
+
+      // .sudocode should be a file (not directory) in repo
+      const sudocodeFilePath = path.join(tempDir, ".sudocode");
+      expect(fs.existsSync(sudocodeFilePath)).toBe(true);
+      const stat = fs.statSync(sudocodeFilePath);
+      expect(stat.isFile()).toBe(true);
+
+      // File should contain absolute path
+      const content = fs.readFileSync(sudocodeFilePath, "utf8");
+      expect(content).toBe(`sudocodedir: ${externalDataDir}\n`);
+
+      // External data dir should have all the standard files
+      expect(fs.existsSync(path.join(externalDataDir, "config.json"))).toBe(true);
+      expect(fs.existsSync(path.join(externalDataDir, "cache.db"))).toBe(true);
+      expect(fs.existsSync(path.join(externalDataDir, "specs"))).toBe(true);
+      expect(fs.existsSync(path.join(externalDataDir, "issues"))).toBe(true);
+
+      // config.json should have projectId
+      const config = JSON.parse(
+        fs.readFileSync(path.join(externalDataDir, "config.json"), "utf8")
+      );
+      expect(config.projectId).toBeDefined();
+
+      // config.local.json should have projectdir back-link
+      const localConfig = JSON.parse(
+        fs.readFileSync(path.join(externalDataDir, "config.local.json"), "utf8")
+      );
+      expect(localConfig.projectdir).toBe(tempDir);
+    });
+
+    it("should use relative path in .sudocode file when --relative-paths is set", async () => {
+      const externalDataDir = path.join(tempDir, "shared", "data");
+
+      await performInitialization({
+        dir: path.join(tempDir, ".sudocode"),
+        externalDir: externalDataDir,
+        relativePaths: true,
+        jsonOutput: true,
+      });
+
+      const content = fs.readFileSync(path.join(tempDir, ".sudocode"), "utf8");
+      const expectedRelative = path.relative(tempDir, externalDataDir);
+      expect(content).toBe(`sudocodedir: ${expectedRelative}\n`);
+    });
+
+    it("should be idempotent on re-init", async () => {
+      const sudocodeDir = path.join(tempDir, ".sudocode");
+
+      // First init
+      await performInitialization({ dir: sudocodeDir, jsonOutput: true });
+
+      const config1 = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, "config.json"), "utf8")
+      );
+      const projectId1 = config1.projectId;
+
+      // Second init
+      await performInitialization({ dir: sudocodeDir, jsonOutput: true });
+
+      const config2 = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, "config.json"), "utf8")
+      );
+      // projectId should be preserved (not overwritten)
+      expect(config2.projectId).toBe(projectId1);
+    });
+  });
 });

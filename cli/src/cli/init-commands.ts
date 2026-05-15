@@ -7,8 +7,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { initDatabase } from "../db.js";
 import type Database from "better-sqlite3";
-import { PROJECT_CONFIG_FILE, LOCAL_CONFIG_FILE, getProjectConfig } from "../config.js";
+import { PROJECT_CONFIG_FILE, LOCAL_CONFIG_FILE, getProjectConfig, updateProjectConfig, updateLocalConfig } from "../config.js";
 import type { StorageMode } from "@sudocode-ai/types";
+import { generateProjectId } from "../project-discovery.js";
+import { writeSudocodeFile } from "../sudocode-file.js";
 
 /**
  * Build .gitignore content based on sourceOfTruth mode.
@@ -38,6 +40,10 @@ export function buildGitignore(sourceOfTruth: StorageMode): string {
 export interface InitOptions {
   dir?: string;
   jsonOutput?: boolean;
+  /** External mode: store data at this path instead of co-located .sudocode/ */
+  externalDir?: string;
+  /** Use relative paths in .sudocode file (like Git's worktree.useRelativePaths) */
+  relativePaths?: boolean;
 }
 
 /**
@@ -65,8 +71,21 @@ export function isInitialized(dir: string): boolean {
 export async function performInitialization(
   options: InitOptions = {}
 ): Promise<void> {
-  const dir = options.dir || path.join(process.cwd(), ".sudocode");
+  const repoDir = options.dir ? path.dirname(options.dir) : process.cwd();
   const jsonOutput = options.jsonOutput || false;
+
+  let dir: string;
+  let isExternal = false;
+
+  if (options.externalDir) {
+    // External mode: data lives at externalDir, .sudocode file points to it
+    dir = path.resolve(options.externalDir);
+    isExternal = true;
+  } else if (options.dir) {
+    dir = options.dir;
+  } else {
+    dir = path.join(process.cwd(), ".sudocode");
+  }
 
   // Create directory structure
   fs.mkdirSync(dir, { recursive: true });
@@ -203,6 +222,30 @@ export async function performInitialization(
   fs.writeFileSync(gitignorePath, gitignoreContent, "utf8");
 
   database.close();
+
+  // Write projectId to config.json and projectdir to config.local.json
+  const effectiveRepoDir = isExternal ? repoDir : path.dirname(dir);
+  const projectId = generateProjectId(effectiveRepoDir);
+
+  // Update config.json with projectId (only if not already set)
+  const existingProjectConfig = getProjectConfig(dir);
+  if (!existingProjectConfig.projectId) {
+    updateProjectConfig(dir, { projectId });
+  }
+
+  // Update config.local.json with projectdir back-link
+  updateLocalConfig(dir, { projectdir: effectiveRepoDir });
+
+  // External mode: write .sudocode file in repo pointing to data dir
+  if (isExternal) {
+    let sudocodeDirPointer: string;
+    if (options.relativePaths) {
+      sudocodeDirPointer = path.relative(effectiveRepoDir, dir);
+    } else {
+      sudocodeDirPointer = dir;
+    }
+    writeSudocodeFile(effectiveRepoDir, sudocodeDirPointer);
+  }
 
   if (!jsonOutput) {
     console.log(chalk.green("✓ Initialized sudocode in"), chalk.cyan(dir));

@@ -363,3 +363,150 @@ func TestJSONFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestInitColocatedWritesProjectIdAndProjectdir(t *testing.T) {
+	_, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	projDir := t.TempDir()
+	ctx := context.Background()
+
+	resp, err := Init(ctx, &InitParams{Path: projDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sudocodeDir := filepath.Join(projDir, ".sudocode")
+
+	// config.json should have projectId
+	cfgData, err := os.ReadFile(filepath.Join(sudocodeDir, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg map[string]interface{}
+	json.Unmarshal(cfgData, &cfg)
+	pid, ok := cfg["projectId"].(string)
+	if !ok || pid == "" {
+		t.Error("config.json missing projectId")
+	}
+	if pid != resp.Project.ID {
+		t.Errorf("projectId = %q, want %q", pid, resp.Project.ID)
+	}
+
+	// config.local.json should have projectdir
+	localData, err := os.ReadFile(filepath.Join(sudocodeDir, "config.local.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var local map[string]interface{}
+	json.Unmarshal(localData, &local)
+	pdir, ok := local["projectdir"].(string)
+	if !ok || pdir != projDir {
+		t.Errorf("projectdir = %q, want %q", pdir, projDir)
+	}
+}
+
+func TestInitExternal(t *testing.T) {
+	_, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	projDir := t.TempDir()
+	extDir := filepath.Join(t.TempDir(), "external-data")
+	ctx := context.Background()
+
+	resp, err := Init(ctx, &InitParams{Path: projDir, ExternalDir: &extDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// .sudocode in repo should be a file
+	info, err := os.Stat(filepath.Join(projDir, ".sudocode"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.IsDir() {
+		t.Error(".sudocode should be a file in external mode, not a directory")
+	}
+
+	// File should contain absolute path
+	content, _ := os.ReadFile(filepath.Join(projDir, ".sudocode"))
+	expected := "sudocodedir: " + extDir + "\n"
+	if string(content) != expected {
+		t.Errorf(".sudocode content = %q, want %q", string(content), expected)
+	}
+
+	// External dir should have config files
+	if _, err := os.Stat(filepath.Join(extDir, "config.json")); err != nil {
+		t.Error("external dir missing config.json")
+	}
+
+	// config.json should have projectId
+	cfgData, _ := os.ReadFile(filepath.Join(extDir, "config.json"))
+	var cfg map[string]interface{}
+	json.Unmarshal(cfgData, &cfg)
+	if cfg["projectId"] != resp.Project.ID {
+		t.Errorf("projectId mismatch")
+	}
+
+	// config.local.json should have projectdir back-link
+	localData, _ := os.ReadFile(filepath.Join(extDir, "config.local.json"))
+	var local map[string]interface{}
+	json.Unmarshal(localData, &local)
+	if local["projectdir"] != projDir {
+		t.Errorf("projectdir = %v, want %q", local["projectdir"], projDir)
+	}
+
+	// Registry should have sudocodeDir pointing to external
+	if resp.Project.SudocodeDir != extDir {
+		t.Errorf("sudocodeDir = %q, want %q", resp.Project.SudocodeDir, extDir)
+	}
+}
+
+func TestInitExternalRelativePaths(t *testing.T) {
+	_, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	projDir := t.TempDir()
+	extDir := filepath.Join(projDir, "shared", "data")
+	ctx := context.Background()
+
+	_, err := Init(ctx, &InitParams{
+		Path:          projDir,
+		ExternalDir:   &extDir,
+		RelativePaths: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, _ := os.ReadFile(filepath.Join(projDir, ".sudocode"))
+	rel, _ := filepath.Rel(projDir, extDir)
+	expected := "sudocodedir: " + rel + "\n"
+	if string(content) != expected {
+		t.Errorf(".sudocode content = %q, want %q", string(content), expected)
+	}
+}
+
+func TestInitIdempotent(t *testing.T) {
+	_, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	projDir := t.TempDir()
+	ctx := context.Background()
+
+	resp1, _ := Init(ctx, &InitParams{Path: projDir})
+	resp2, _ := Init(ctx, &InitParams{Path: projDir})
+
+	// projectId should be the same
+	if resp1.Project.ID != resp2.Project.ID {
+		t.Error("re-init should preserve project ID")
+	}
+
+	// config.json projectId should be preserved
+	cfgData, _ := os.ReadFile(filepath.Join(projDir, ".sudocode", "config.json"))
+	var cfg map[string]interface{}
+	json.Unmarshal(cfgData, &cfg)
+	if cfg["projectId"] != resp1.Project.ID {
+		t.Error("projectId in config.json should be preserved on re-init")
+	}
+}

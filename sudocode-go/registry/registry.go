@@ -9,6 +9,9 @@ import (
 	"runtime"
 	"sort"
 	"time"
+
+	"encore.app/sudocode-go/internal/sudocodefile"
+	"encore.app/sudocode-go/sync"
 )
 
 // store is the package-level Store instance.
@@ -51,8 +54,10 @@ type CloseResponse struct {
 }
 
 type InitParams struct {
-	Path string  `json:"path"`
-	Name *string `json:"name,omitempty"`
+	Path         string  `json:"path"`
+	Name         *string `json:"name,omitempty"`
+	ExternalDir  *string `json:"externalDir,omitempty"`
+	RelativePaths bool   `json:"relativePaths,omitempty"`
 }
 
 type InitResponse struct {
@@ -197,9 +202,22 @@ func Init(ctx context.Context, params *InitParams) (*InitResponse, error) {
 		return nil, fmt.Errorf("path not found or not a directory: %s", absPath)
 	}
 
-	sudocodeDir := filepath.Join(absPath, ".sudocode")
+	var sudocodeDir string
+	isExternal := params.ExternalDir != nil && *params.ExternalDir != ""
+
+	if isExternal {
+		// External mode: data lives at externalDir
+		sudocodeDir, err = filepath.Abs(*params.ExternalDir)
+		if err != nil {
+			return nil, fmt.Errorf("resolve external dir: %w", err)
+		}
+	} else {
+		// Co-located mode
+		sudocodeDir = filepath.Join(absPath, ".sudocode")
+	}
+
 	if err := os.MkdirAll(sudocodeDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create .sudocode dir: %w", err)
+		return nil, fmt.Errorf("create sudocode dir: %w", err)
 	}
 
 	name := filepath.Base(absPath)
@@ -209,6 +227,42 @@ func Init(ctx context.Context, params *InitParams) (*InitResponse, error) {
 
 	id := GenerateProjectID(absPath)
 	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Write projectId to config.json (only if not already set)
+	projCfg, err := sync.ReadConfig(sudocodeDir)
+	if err != nil {
+		return nil, fmt.Errorf("read config: %w", err)
+	}
+	if projCfg.ProjectID == "" {
+		projCfg.ProjectID = id
+		if err := sync.WriteConfig(sudocodeDir, projCfg); err != nil {
+			return nil, fmt.Errorf("write config: %w", err)
+		}
+	}
+
+	// Write projectdir back-link to config.local.json
+	localCfg, err := sync.ReadLocalConfig(sudocodeDir)
+	if err != nil {
+		return nil, fmt.Errorf("read local config: %w", err)
+	}
+	localCfg.ProjectDir = absPath
+	if err := sync.WriteLocalConfig(sudocodeDir, localCfg); err != nil {
+		return nil, fmt.Errorf("write local config: %w", err)
+	}
+
+	// External mode: write .sudocode file in repo
+	if isExternal {
+		pointer := sudocodeDir
+		if params.RelativePaths {
+			rel, err := filepath.Rel(absPath, sudocodeDir)
+			if err == nil {
+				pointer = rel
+			}
+		}
+		if err := sudocodefile.WriteSudocodeFile(absPath, pointer); err != nil {
+			return nil, fmt.Errorf("write .sudocode file: %w", err)
+		}
+	}
 
 	cfg, err := store.Update(func(c *ProjectsConfig) error {
 		c.Projects[id] = ProjectInfo{
