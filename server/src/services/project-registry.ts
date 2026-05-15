@@ -1,4 +1,11 @@
 import { discoverProject } from '@sudocode-ai/cli/project-discovery'
+import { writeSudocodeFile } from '@sudocode-ai/cli/sudocode-file'
+import {
+  getProjectConfig,
+  getLocalConfig,
+  updateProjectConfig,
+  updateLocalConfig,
+} from '@sudocode-ai/cli/config'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as os from 'os'
@@ -72,14 +79,57 @@ export class ProjectRegistry {
             throw new Error('Invalid config structure')
           }
 
-          // Migrate v1 → v2: strip path field from projects
+          // Migrate v1 → v2: create back-links, then strip path field
           if (this.config.version < 2) {
             for (const project of Object.values(this.config.projects)) {
-              delete (project as any).path
+              const p = project as any
+              const projectPath: string | undefined = p.path
+              const sudocodeDir: string | undefined = p.sudocodeDir
+
+              if (sudocodeDir && fs.existsSync(sudocodeDir)) {
+                // Write projectId to config.json (don't overwrite if set)
+                try {
+                  const projCfg = getProjectConfig(sudocodeDir)
+                  if (!projCfg.projectId) {
+                    updateProjectConfig(sudocodeDir, { projectId: p.id })
+                  }
+                } catch (e: any) {
+                  console.warn(`[registry] v1→v2 migration: ${p.id} — config.json error: ${e.message}`)
+                }
+
+                // Write projectdir to config.local.json (don't overwrite if set)
+                if (projectPath) {
+                  try {
+                    const localCfg = getLocalConfig(sudocodeDir)
+                    if (!localCfg.projectdir) {
+                      updateLocalConfig(sudocodeDir, { projectdir: projectPath })
+                    }
+                  } catch (e: any) {
+                    console.warn(`[registry] v1→v2 migration: ${p.id} — config.local.json error: ${e.message}`)
+                  }
+                }
+
+                // For external projects, create .sudocode pointer file
+                if (projectPath) {
+                  const colocated = path.join(projectPath, '.sudocode')
+                  if (sudocodeDir !== colocated && fs.existsSync(projectPath)) {
+                    try {
+                      writeSudocodeFile(projectPath, sudocodeDir)
+                    } catch (e: any) {
+                      console.warn(`[registry] v1→v2 migration: ${p.id} — .sudocode file error: ${e.message}`)
+                    }
+                  }
+                }
+              } else if (sudocodeDir) {
+                console.warn(`[registry] v1→v2 migration: skipping ${p.id} — sudocodeDir ${sudocodeDir} does not exist`)
+              }
+
+              // Strip path field
+              delete p.path
             }
             this.config.version = 2
             await this.save()
-            console.log(`[registry] load: migrated config from v1 to v2`)
+            console.log(`[registry] load: migrated config from v1 to v2 with back-links`)
           }
           
           const projectCount = Object.keys(this.config.projects).length

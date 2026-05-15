@@ -746,56 +746,207 @@ describe('ProjectRegistry', () => {
     })
   })
 
-  describe('getSudocodeDir', () => {
-    beforeEach(async () => {
-      delete process.env.SUDOCODE_DIR
+  describe('v1 to v2 migration with back-links', () => {
+    it('should create back-links for co-located project', async () => {
+      // Create a real sudocode dir
+      const projectPath = path.join(tempDir, 'myrepo')
+      const sudocodeDir = path.join(projectPath, '.sudocode')
+      fs.mkdirSync(sudocodeDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(sudocodeDir, 'config.json'),
+        JSON.stringify({ sourceOfTruth: 'jsonl' }),
+      )
+
+      // Write v1 config
+      const v1Config = {
+        version: 1,
+        projects: {
+          'myrepo-abc12345': {
+            id: 'myrepo-abc12345',
+            name: 'myrepo',
+            path: projectPath,
+            sudocodeDir: sudocodeDir,
+            registeredAt: '2024-01-01T00:00:00Z',
+            lastOpenedAt: '2024-01-01T00:00:00Z',
+            favorite: false,
+          },
+        },
+        recentProjects: ['myrepo-abc12345'],
+        settings: { maxRecentProjects: 10, autoOpenLastProject: false },
+      }
+      fs.writeFileSync(configPath, JSON.stringify(v1Config))
+
       await registry.load()
+
+      // Verify config.json has projectId
+      const projCfg = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, 'config.json'), 'utf-8'),
+      )
+      expect(projCfg.projectId).toBe('myrepo-abc12345')
+
+      // Verify config.local.json has projectdir
+      const localCfg = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, 'config.local.json'), 'utf-8'),
+      )
+      expect(localCfg.projectdir).toBe(projectPath)
+
+      // .sudocode should still be a directory (no pointer file for co-located)
+      const stat = fs.statSync(path.join(projectPath, '.sudocode'))
+      expect(stat.isDirectory()).toBe(true)
+
+      // Version should be bumped
+      const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      expect(saved.version).toBe(2)
+      expect(saved.projects['myrepo-abc12345'].path).toBeUndefined()
     })
 
-    afterEach(() => {
-      delete process.env.SUDOCODE_DIR
+    it('should create .sudocode pointer file for external project', async () => {
+      const projectPath = path.join(tempDir, 'myrepo')
+      fs.mkdirSync(projectPath, { recursive: true })
+
+      const sudocodeDir = path.join(tempDir, 'shared', '.sudocode', 'myrepo')
+      fs.mkdirSync(sudocodeDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(sudocodeDir, 'config.json'),
+        JSON.stringify({ sourceOfTruth: 'jsonl' }),
+      )
+
+      const v1Config = {
+        version: 1,
+        projects: {
+          'myrepo-def45678': {
+            id: 'myrepo-def45678',
+            name: 'myrepo',
+            path: projectPath,
+            sudocodeDir: sudocodeDir,
+            registeredAt: '2024-01-01T00:00:00Z',
+            lastOpenedAt: '2024-01-01T00:00:00Z',
+            favorite: false,
+          },
+        },
+        recentProjects: [],
+        settings: { maxRecentProjects: 10, autoOpenLastProject: false },
+      }
+      fs.writeFileSync(configPath, JSON.stringify(v1Config))
+
+      await registry.load()
+
+      // Verify .sudocode pointer file was created
+      const pointerContent = fs.readFileSync(
+        path.join(projectPath, '.sudocode'),
+        'utf-8',
+      )
+      expect(pointerContent).toBe(`sudocodedir: ${sudocodeDir}\n`)
     })
 
-    it('should return stored sudocodeDir for registered project', async () => {
-      const projectPath = '/Users/alex/repos/test-project'
-      const customDir = '/custom/.sudocode'
-      
-      // Register with custom dir
-      registry.registerProject(projectPath, customDir)
-      
-      // getSudocodeDir should return the stored value
-      expect(registry.getSudocodeDir(projectPath)).toBe(customDir)
+    it('should skip projects with missing sudocodeDir gracefully', async () => {
+      const v1Config = {
+        version: 1,
+        projects: {
+          'ghost-aaa11111': {
+            id: 'ghost-aaa11111',
+            name: 'ghost',
+            path: path.join(tempDir, 'nonexistent'),
+            sudocodeDir: path.join(tempDir, 'nonexistent', '.sudocode'),
+            registeredAt: '2024-01-01T00:00:00Z',
+            lastOpenedAt: '2024-01-01T00:00:00Z',
+            favorite: false,
+          },
+        },
+        recentProjects: [],
+        settings: { maxRecentProjects: 10, autoOpenLastProject: false },
+      }
+      fs.writeFileSync(configPath, JSON.stringify(v1Config))
+
+      // Should not throw
+      const result = await registry.load()
+      expect(result.ok).toBe(true)
+
+      // Version should still be bumped
+      const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      expect(saved.version).toBe(2)
     })
 
-    it('should return stored sudocodeDir even when SUDOCODE_DIR env var is set', async () => {
-      const projectPath = '/Users/alex/repos/test-project'
-      const customDir = '/custom/.sudocode'
-      
-      // Register with custom dir
-      registry.registerProject(projectPath, customDir)
-      
-      // Set env var to something different
-      process.env.SUDOCODE_DIR = '/env-var/.sudocode'
-      
-      // getSudocodeDir should still return the stored value (stored takes precedence)
-      expect(registry.getSudocodeDir(projectPath)).toBe(customDir)
+    it('should not overwrite existing projectId', async () => {
+      const projectPath = path.join(tempDir, 'myrepo')
+      const sudocodeDir = path.join(projectPath, '.sudocode')
+      fs.mkdirSync(sudocodeDir, { recursive: true })
+
+      // Pre-set a projectId
+      fs.writeFileSync(
+        path.join(sudocodeDir, 'config.json'),
+        JSON.stringify({ sourceOfTruth: 'jsonl', projectId: 'already-set' }),
+      )
+
+      const v1Config = {
+        version: 1,
+        projects: {
+          'myrepo-abc12345': {
+            id: 'myrepo-abc12345',
+            name: 'myrepo',
+            path: projectPath,
+            sudocodeDir: sudocodeDir,
+            registeredAt: '2024-01-01T00:00:00Z',
+            lastOpenedAt: '2024-01-01T00:00:00Z',
+            favorite: false,
+          },
+        },
+        recentProjects: [],
+        settings: { maxRecentProjects: 10, autoOpenLastProject: false },
+      }
+      fs.writeFileSync(configPath, JSON.stringify(v1Config))
+
+      await registry.load()
+
+      const projCfg = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, 'config.json'), 'utf-8'),
+      )
+      expect(projCfg.projectId).toBe('already-set')
     })
 
-    it('should NOT use SUDOCODE_DIR env var for unregistered project (prevents contamination)', async () => {
-      const projectPath = '/Users/alex/repos/unregistered-project'
+    it('should be idempotent (safe to re-run)', async () => {
+      const projectPath = path.join(tempDir, 'myrepo')
+      const sudocodeDir = path.join(projectPath, '.sudocode')
+      fs.mkdirSync(sudocodeDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(sudocodeDir, 'config.json'),
+        JSON.stringify({ sourceOfTruth: 'jsonl' }),
+      )
 
-      process.env.SUDOCODE_DIR = '/env-var/.sudocode'
+      const v1Config = {
+        version: 1,
+        projects: {
+          'myrepo-abc12345': {
+            id: 'myrepo-abc12345',
+            name: 'myrepo',
+            path: projectPath,
+            sudocodeDir: sudocodeDir,
+            registeredAt: '2024-01-01T00:00:00Z',
+            lastOpenedAt: '2024-01-01T00:00:00Z',
+            favorite: false,
+          },
+        },
+        recentProjects: [],
+        settings: { maxRecentProjects: 10, autoOpenLastProject: false },
+      }
+      fs.writeFileSync(configPath, JSON.stringify(v1Config))
 
-      // SUDOCODE_DIR should NOT be used for unregistered projects to prevent
-      // cross-project contamination when server manages multiple projects
-      expect(registry.getSudocodeDir(projectPath)).toBe(path.join(projectPath, '.sudocode'))
-    })
+      // First load — triggers migration
+      await registry.load()
 
-    it('should return default path for unregistered project without env var', async () => {
-      const projectPath = '/Users/alex/repos/unregistered-project'
-      
-      // No env var, not registered - should return default
-      expect(registry.getSudocodeDir(projectPath)).toBe(path.join(projectPath, '.sudocode'))
+      // Second load — already v2
+      const registry2 = new ProjectRegistry(configPath)
+      await registry2.load()
+
+      // projectId should still be set correctly
+      const projCfg = JSON.parse(
+        fs.readFileSync(path.join(sudocodeDir, 'config.json'), 'utf-8'),
+      )
+      expect(projCfg.projectId).toBe('myrepo-abc12345')
+
+      // Version stays at 2
+      const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      expect(saved.version).toBe(2)
     })
   })
 })

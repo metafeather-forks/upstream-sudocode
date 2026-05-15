@@ -37,8 +37,8 @@ func TestStoreDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Version != 1 {
-		t.Errorf("version = %d, want 1", cfg.Version)
+	if cfg.Version != 2 {
+		t.Errorf("version = %d, want 2", cfg.Version)
 	}
 	if len(cfg.Projects) != 0 {
 		t.Errorf("projects = %d, want 0", len(cfg.Projects))
@@ -390,7 +390,7 @@ func TestJSONFormat(t *testing.T) {
 	projects := raw["projects"].(map[string]interface{})
 	for _, v := range projects {
 		p := v.(map[string]interface{})
-		for _, key := range []string{"id", "name", "path", "sudocodeDir", "registeredAt", "lastOpenedAt"} {
+		for _, key := range []string{"id", "name", "sudocodeDir", "registeredAt", "lastOpenedAt"} {
 			if _, ok := p[key]; !ok {
 				t.Errorf("missing project key %q", key)
 			}

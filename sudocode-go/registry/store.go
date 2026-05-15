@@ -2,9 +2,14 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"encore.app/sudocode-go/internal/sudocodefile"
+	syncpkg "encore.app/sudocode-go/sync"
 )
 
 // ProjectInfo holds metadata for a registered project.
@@ -86,11 +91,15 @@ func (s *Store) loadLocked() (ProjectsConfig, error) {
 		cfg.RecentProjects = []string{}
 	}
 
-	// Migrate v1 → v2: bump version (path field is already dropped by the
-	// struct definition — any "path" keys in JSON are silently ignored during
-	// unmarshal). The file will be re-written as v2 on the next Save.
+	// Migrate v1 → v2: bump version, create back-links (projectId in config.json,
+	// projectdir in config.local.json), and write .sudocode files for external projects.
+	// The path field is dropped by the struct definition (silently ignored during unmarshal).
+	// We re-parse raw JSON to recover the v1 path values for migration.
 	if cfg.Version < 2 {
 		cfg.Version = 2
+		if err := s.migrateV1ToV2(data, cfg); err != nil {
+			log.Printf("[registry] v1→v2 migration warning: %v", err)
+		}
 	}
 
 	return cfg, nil
@@ -133,4 +142,80 @@ func (s *Store) Update(fn func(*ProjectsConfig) error) (ProjectsConfig, error) {
 		return ProjectsConfig{}, err
 	}
 	return cfg, nil
+}
+
+// v1ProjectEntry is used to unmarshal v1 projects.json entries which include
+// a "path" field that no longer exists in ProjectInfo.
+type v1ProjectEntry struct {
+	ID          string `json:"id"`
+	Path        string `json:"path"`
+	SudocodeDir string `json:"sudocodeDir"`
+}
+
+// migrateV1ToV2 creates back-links and .sudocode files for existing v1 projects.
+// It is idempotent — safe to re-run if interrupted.
+func (s *Store) migrateV1ToV2(rawData []byte, cfg ProjectsConfig) error {
+	// Re-parse raw JSON to recover v1 path values
+	var raw struct {
+		Projects map[string]v1ProjectEntry `json:"projects"`
+	}
+	if err := json.Unmarshal(rawData, &raw); err != nil {
+		return fmt.Errorf("re-parse v1 projects: %w", err)
+	}
+
+	for id, entry := range raw.Projects {
+		if entry.SudocodeDir == "" {
+			continue
+		}
+
+		// Check sudocodeDir exists
+		if _, err := os.Stat(entry.SudocodeDir); err != nil {
+			if os.IsNotExist(err) {
+				log.Printf("[registry] v1→v2 migration: skipping %s — sudocodeDir %s does not exist", id, entry.SudocodeDir)
+				continue
+			}
+			log.Printf("[registry] v1→v2 migration: skipping %s — stat error: %v", id, err)
+			continue
+		}
+
+		// Write projectId to config.json (don't overwrite if already set)
+		projCfg, err := syncpkg.ReadConfig(entry.SudocodeDir)
+		if err != nil {
+			log.Printf("[registry] v1→v2 migration: %s — read config.json error: %v", id, err)
+		} else if projCfg.ProjectID == "" {
+			projCfg.ProjectID = id
+			if err := syncpkg.WriteConfig(entry.SudocodeDir, projCfg); err != nil {
+				log.Printf("[registry] v1→v2 migration: %s — write config.json error: %v", id, err)
+			}
+		}
+
+		// Write projectdir to config.local.json (don't overwrite if already set)
+		if entry.Path != "" {
+			localCfg, err := syncpkg.ReadLocalConfig(entry.SudocodeDir)
+			if err != nil {
+				log.Printf("[registry] v1→v2 migration: %s — read config.local.json error: %v", id, err)
+			} else if localCfg.ProjectDir == "" {
+				localCfg.ProjectDir = entry.Path
+				if err := syncpkg.WriteLocalConfig(entry.SudocodeDir, localCfg); err != nil {
+					log.Printf("[registry] v1→v2 migration: %s — write config.local.json error: %v", id, err)
+				}
+			}
+		}
+
+		// For external projects, create .sudocode file in the repo
+		if entry.Path != "" {
+			colocated := filepath.Join(entry.Path, ".sudocode")
+			if entry.SudocodeDir != colocated {
+				// External — create .sudocode pointer file (only if path dir exists)
+				if _, err := os.Stat(entry.Path); err == nil {
+					if err := sudocodefile.WriteSudocodeFile(entry.Path, entry.SudocodeDir); err != nil {
+						log.Printf("[registry] v1→v2 migration: %s — write .sudocode file error: %v", id, err)
+					}
+				}
+			}
+		}
+	}
+
+	// Save the migrated v2 config
+	return s.saveLocked(cfg)
 }

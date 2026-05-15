@@ -9,6 +9,8 @@
     "./update-checker": "./dist/update-checker.js",
     "./install-source": "./dist/install-source.js",
     "./project-discovery": "./dist/project-discovery.js",
+    "./config": "./dist/config.js",
+    "./sudocode-file": "./dist/sudocode-file.js",
     "./dist/*": "./dist/*"
   },
   "bin": {
