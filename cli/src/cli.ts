@@ -80,6 +80,7 @@ import {
   handleConfigShow,
   handleConfigProjectId,
 } from "./cli/config-commands.js";
+import { handleRepair } from "./cli/repair-commands.js";
 import { getUpdateNotification } from "./update-checker.js";
 import { VERSION } from "./version.js";
 
@@ -228,6 +229,7 @@ program
       "init-merge-driver",
       "remove-merge-driver",
       "update",
+      "repair",
     ]);
 
     // Build full command path (e.g. "issue update", "config project-id")
@@ -706,6 +708,19 @@ program
     } else {
       await handleUpdate();
     }
+  });
+
+// ============================================================================
+// REPAIR COMMAND
+// ============================================================================
+
+program
+  .command("repair")
+  .description("Validate and repair project links")
+  .option("--fix", "Repair broken links (default: dry-run/report only)")
+  .option("--rebuild", "Rebuild projects.json from scratch")
+  .action(async (options) => {
+    await handleRepair({ fix: options.fix, rebuild: options.rebuild, json: jsonOutput });
   });
 
 // ============================================================================
