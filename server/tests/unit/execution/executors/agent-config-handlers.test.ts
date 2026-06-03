@@ -9,6 +9,7 @@ import {
   claudeCodeHandler,
   geminiHandler,
   codexHandler,
+  opencodeHandler,
   defaultHandler,
   getAgentConfigHandler,
   processAgentConfig,
@@ -703,9 +704,24 @@ describe("Agent Config Handlers", () => {
       expect(handler).toBe(defaultHandler);
     });
 
-    it("should return defaultHandler for opencode (not explicitly registered)", () => {
+    it("should return opencodeHandler for opencode", () => {
       const handler = getAgentConfigHandler("opencode");
-      expect(handler).toBe(defaultHandler);
+      expect(handler).toBe(opencodeHandler);
+    });
+
+    it("opencodeHandler defaults to auto-approve to avoid permission deadlock", () => {
+      const result = opencodeHandler.processConfig({}, defaultContext);
+      expect(result.skipPermissions).toBe(true);
+      expect(result.acpPermissionMode).toBe("auto-approve");
+    });
+
+    it("opencodeHandler honours explicit interactive permissionMode", () => {
+      const result = opencodeHandler.processConfig(
+        { permissionMode: "interactive" },
+        defaultContext
+      );
+      expect(result.skipPermissions).toBe(false);
+      expect(result.acpPermissionMode).toBe("interactive");
     });
   });
 

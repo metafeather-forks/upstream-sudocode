@@ -169,7 +169,6 @@ describe('ProjectContext', () => {
       result.current.setCurrentProject({
         id: 'project-1',
         name: 'Project 1',
-        path: '/path/to/project1',
         sudocodeDir: '/path/to/project1/.sudocode',
         registeredAt: '2025-01-01T00:00:00Z',
         lastOpenedAt: '2025-01-01T00:00:00Z',
@@ -236,7 +235,6 @@ describe('ProjectContext', () => {
       result.current.setCurrentProject({
         id: 'project-1',
         name: 'Project 1',
-        path: '/path/to/project1',
         sudocodeDir: '/path/to/project1/.sudocode',
         registeredAt: '2025-01-01T00:00:00Z',
         lastOpenedAt: '2025-01-01T00:00:00Z',

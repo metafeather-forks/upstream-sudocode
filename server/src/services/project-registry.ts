@@ -325,7 +325,12 @@ export class ProjectRegistry {
   getProject(projectId: string): ProjectInfo | null {
     const project = this.config.projects[projectId] || null
     if (project) {
-      console.log(`[registry] getProject: projectId=${projectId}, sudocodeDir=${project.sudocodeDir}`)
+      // Hot path: called on every API request (incl. each MCP poll). Logging it
+      // unconditionally floods the server output and buries execution logs, so
+      // gate the success line behind SUDOCODE_DEBUG.
+      if (process.env.SUDOCODE_DEBUG) {
+        console.log(`[registry] getProject: projectId=${projectId}, sudocodeDir=${project.sudocodeDir}`)
+      }
     } else {
       console.log(`[registry] getProject: projectId=${projectId} not found`)
     }
