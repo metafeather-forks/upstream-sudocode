@@ -30,6 +30,10 @@ processes:
     depends_on:
       link:
         condition: process_completed_successfully
+    availability:
+      restart: on_failure
+      backoff_seconds: 5
+      max_restarts: 3
     readiness_probe:
       http_get:
         host: 127.0.0.1
@@ -40,10 +44,10 @@ processes:
       period_seconds: 10
       timeout_seconds: 5
       failure_threshold: 3
-    availability:
-      restart: on_failure
-      backoff_seconds: 5
-      max_restarts: 3
     shutdown:
       signal: 15
       timeout_seconds: 10
+
+  opencode:
+    command: opencode serve --port ${OPENCODE_PORT:-4096} --print-logs --log-level=DEBUG
+    description: opencode serve on default port
