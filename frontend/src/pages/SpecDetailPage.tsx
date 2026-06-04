@@ -48,7 +48,7 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react'
-import type { IssueFeedback, Relationship, EntityType, RelationshipType } from '@/types/api'
+import type { IssueFeedback, Relationship, EntityType, RelationshipType, SpecWithTags } from '@/types/api'
 import type { WorkflowSource } from '@/types/workflow'
 import type { FieldChange } from '@/lib/api'
 import { relationshipsApi } from '@/lib/api'
@@ -1130,6 +1130,20 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                     </TooltipProvider>
                   </div>
                 </div>
+
+                {/* Tags */}
+                {(spec as SpecWithTags).tags && (spec as SpecWithTags).tags!.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Tags:</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(spec as SpecWithTags).tags!.map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Stale Link Warning */}
                 {spec.external_links &&

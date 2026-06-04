@@ -2,12 +2,13 @@ import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Pause, Copy, Check } from 'lucide-react'
 import { useProjectRoutes } from '@/hooks/useProjectRoutes'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SyncIndicator } from '@/components/issues/SyncIndicator'
 import { toast } from 'sonner'
-import type { Spec } from '@/types/api'
+import type { Spec, SpecWithTags } from '@/types/api'
 import type { Workflow } from '@/types/workflow'
 import { cn } from '@/lib/utils'
 
@@ -29,7 +30,7 @@ const priorityLabels: Record<number, string> = {
 }
 
 interface SpecCardProps {
-  spec: Spec
+  spec: SpecWithTags
   onClick?: (spec: Spec) => void
   /** Active workflow for this spec (if any) */
   activeWorkflow?: Workflow
@@ -158,6 +159,29 @@ export function SpecCard({
 
           {/* Preview */}
           {preview && <p className="line-clamp-3 text-sm text-muted-foreground">{preview}</p>}
+
+          {/* Tags */}
+          {spec.tags && spec.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {spec.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+              {spec.tags.length > 3 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="cursor-default text-xs">
+                      +{spec.tags.length - 3}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{spec.tags.join(', ')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          )}
 
           {/* Footer with file path */}
           {spec.file_path && (
