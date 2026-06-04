@@ -155,6 +155,36 @@ export function hasTag(
 }
 
 /**
+ * Get tags for multiple entities of the same type in a single query
+ */
+export function getTagsBatch(
+  db: Database.Database,
+  entityIds: string[],
+  entity_type: EntityType
+): Map<string, string[]> {
+  if (entityIds.length === 0) return new Map();
+
+  const placeholders = entityIds.map(() => "?").join(",");
+  const stmt = db.prepare(`
+    SELECT entity_id, tag FROM tags
+    WHERE entity_id IN (${placeholders}) AND entity_type = ?
+    ORDER BY entity_id, tag
+  `);
+
+  const rows = stmt.all(...entityIds, entity_type) as Array<{ entity_id: string; tag: string }>;
+  const tagsMap = new Map<string, string[]>();
+  for (const row of rows) {
+    const existing = tagsMap.get(row.entity_id);
+    if (existing) {
+      existing.push(row.tag);
+    } else {
+      tagsMap.set(row.entity_id, [row.tag]);
+    }
+  }
+  return tagsMap;
+}
+
+/**
  * Get all unique tags in the system
  */
 export function getAllTags(

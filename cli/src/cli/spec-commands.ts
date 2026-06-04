@@ -17,7 +17,7 @@ import {
   getOutgoingRelationships,
   getIncomingRelationships,
 } from "../operations/relationships.js";
-import { getTags, setTags } from "../operations/tags.js";
+import { getTags, getTagsBatch, setTags } from "../operations/tags.js";
 import { listFeedback } from "../operations/feedback.js";
 import { exportToJSONL } from "../export.js";
 import { writeMarkdownFile } from "../markdown.js";
@@ -147,8 +147,10 @@ export async function handleSpecList(
           limit: parseInt(options.limit),
         });
 
+    const tagsMap = getTagsBatch(ctx.db, specs.map(s => s.id), "spec");
+
     if (ctx.jsonOutput) {
-      console.log(JSON.stringify(specs, null, 2));
+      console.log(JSON.stringify(specs.map(s => ({ ...s, tags: tagsMap.get(s.id) || [] })), null, 2));
     } else {
       if (specs.length === 0) {
         console.log(chalk.gray("No specs found"));
@@ -162,6 +164,10 @@ export async function handleSpecList(
         console.log(
           chalk.gray(`  Priority: ${spec.priority} | ${spec.file_path}`)
         );
+        const tags = tagsMap.get(spec.id);
+        if (tags && tags.length > 0) {
+          console.log(chalk.gray(`  Tags: ${tags.join(", ")}`));
+        }
       }
       console.log();
     }

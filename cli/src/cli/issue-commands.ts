@@ -19,7 +19,7 @@ import {
   getOutgoingRelationships,
   getIncomingRelationships,
 } from "../operations/relationships.js";
-import { getTags, setTags } from "../operations/tags.js";
+import { getTags, getTagsBatch, setTags } from "../operations/tags.js";
 import { listFeedback } from "../operations/feedback.js";
 import { exportToJSONL } from "../export.js";
 import { syncJSONLToMarkdown } from "../sync.js";
@@ -145,8 +145,10 @@ export async function handleIssueList(
           limit: parseInt(options.limit),
         });
 
+    const tagsMap = getTagsBatch(ctx.db, issues.map(i => i.id), "issue");
+
     if (ctx.jsonOutput) {
-      console.log(JSON.stringify(issues, null, 2));
+      console.log(JSON.stringify(issues.map(i => ({ ...i, tags: tagsMap.get(i.id) || [] })), null, 2));
     } else {
       if (issues.length === 0) {
         console.log(chalk.gray("No issues found"));
@@ -175,6 +177,10 @@ export async function handleIssueList(
           assigneeStr
         );
         console.log(chalk.gray(`  Priority: ${issue.priority}`));
+        const tags = tagsMap.get(issue.id);
+        if (tags && tags.length > 0) {
+          console.log(chalk.gray(`  Tags: ${tags.join(", ")}`));
+        }
       }
       console.log();
     }
