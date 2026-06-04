@@ -19,7 +19,7 @@ import {
   ArrowDown,
   ArrowUp,
 } from 'lucide-react'
-import type { Issue, Relationship, EntityType, RelationshipType, IssueStatus } from '@/types/api'
+import type { Issue, IssueWithTags, Relationship, EntityType, RelationshipType, IssueStatus } from '@/types/api'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1186,6 +1186,20 @@ export function IssuePanel({
                   : `Updated ${formatDistanceToNow(new Date(issue.updated_at.endsWith('Z') ? issue.updated_at : issue.updated_at + 'Z'), { addSuffix: true })}`}
               </div>
             </div>
+
+            {/* Tags */}
+            {(issue as IssueWithTags).tags && (issue as IssueWithTags).tags!.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
+                <div className="flex flex-wrap gap-1">
+                  {(issue as IssueWithTags).tags!.map((tag) => (
+                    <Badge key={tag} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Relationships */}
             <div className="space-y-2">

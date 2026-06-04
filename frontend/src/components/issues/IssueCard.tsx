@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectRoutes } from '@/hooks/useProjectRoutes'
 import { KanbanCard } from '@/components/ui/kanban'
+import { Badge } from '@/components/ui/badge'
 import type { Issue, IssueStatus } from '@sudocode-ai/types'
+import type { IssueWithTags } from '@/types/api'
 import type { Execution } from '@/types/execution'
 import type { WorkflowStepStatus } from '@/types/workflow'
 import { Copy, Check, Play, CheckCircle2 } from 'lucide-react'
@@ -206,6 +208,36 @@ export function IssueCard({
             </div>
           </div>
         </div>
+        {/* Tags */}
+        {(issue as IssueWithTags).tags && (issue as IssueWithTags).tags!.length > 0 && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-wrap gap-1">
+                  {(issue as IssueWithTags).tags!.slice(0, 9).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
+                      {tag}
+                    </Badge>
+                  ))}
+                  {(issue as IssueWithTags).tags!.length > 9 && (
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                      +{(issue as IssueWithTags).tags!.length - 9}
+                    </Badge>
+                  )}
+                </div>
+              </TooltipTrigger>
+              {(issue as IssueWithTags).tags!.length > 9 && (
+                <TooltipContent>
+                  <div className="flex flex-col gap-1">
+                    {(issue as IssueWithTags).tags!.slice(9).map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <h4 className="text-md line-clamp-2 min-w-0 flex-1 font-medium">{issue.title}</h4>
         {/* Content Preview */}
         {issue.content && !latestExecution && (
