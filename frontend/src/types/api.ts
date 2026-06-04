@@ -246,6 +246,18 @@ export interface GetAgentsResponse {
 }
 
 /**
+ * Extended types with API-level fields not present in core @sudocode-ai/types
+ */
+
+export interface IssueWithTags extends Issue {
+  tags?: string[]
+}
+
+export interface SpecWithTags extends Spec {
+  tags?: string[]
+}
+
+/**
  * Re-export types from @sudocode-ai/types
  */
 export type {
