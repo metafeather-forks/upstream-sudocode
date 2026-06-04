@@ -59,7 +59,7 @@ const ChatWidgetContext = createContext<ChatWidgetContextValue | null>(null)
 
 const DEFAULT_STATE: ChatWidgetPersistedState = {
   mode: 'floating',
-  agentType: 'copilot',
+  agentType: 'opencode',
   executionConfig: {
     mode: 'local',
   },
@@ -111,7 +111,7 @@ export function ChatWidgetProvider({ children }: ChatWidgetProviderProps) {
   const [hasUserSelection, setHasUserSelection] = useState(persistedState.lastExecutionId !== null)
 
   // Agent settings (persisted)
-  const [agentType, setAgentTypeState] = useState<string>(persistedState.agentType || 'copilot')
+  const [agentType, setAgentTypeState] = useState<string>(persistedState.agentType || 'opencode')
   const [executionConfig, setExecutionConfigState] = useState<Partial<ExecutionConfig>>(
     persistedState.executionConfig || { mode: 'local' }
   )

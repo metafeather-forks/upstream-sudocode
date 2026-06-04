@@ -225,7 +225,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   parallelism: 'sequential',
   onFailure: 'pause',
   autoCommitAfterStep: true,
-  defaultAgentType: 'copilot',
+  defaultAgentType: 'opencode',
   executionMode: 'local',
   autonomyLevel: 'human_in_the_loop',
 }

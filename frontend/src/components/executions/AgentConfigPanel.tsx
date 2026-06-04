@@ -167,7 +167,7 @@ const DEFAULT_AGENT_CONFIGS: Record<string, any> = {
     dangerouslySkipPermissions: false,
   } as GeminiConfig,
   opencode: {
-    dangerouslySkipPermissions: false,
+    dangerouslySkipPermissions: true,
   } as OpencodeConfig,
 }
 
@@ -179,12 +179,13 @@ const SKIP_PERMISSIONS_KEY = 'sudocode:skipPermissions'
 /**
  * Load skip permissions setting from localStorage
  */
-function loadSkipPermissionsSetting(): boolean {
+function loadSkipPermissionsSetting(): boolean | null {
   try {
     const saved = localStorage.getItem(SKIP_PERMISSIONS_KEY)
+    if (saved === null) return null
     return saved === 'true'
   } catch {
-    return false
+    return null
   }
 }
 
@@ -205,11 +206,15 @@ function saveSkipPermissionsSetting(value: boolean): void {
 function getDefaultAgentConfig(agentType: string): any {
   const baseConfig = DEFAULT_AGENT_CONFIGS[agentType] ?? {}
 
-  // For claude-code, merge in the persisted skip permissions setting
-  if (agentType === 'claude-code') {
-    return {
-      ...baseConfig,
-      dangerouslySkipPermissions: loadSkipPermissionsSetting(),
+  // For agents that support dangerouslySkipPermissions, merge in the persisted setting
+  // Only override the static default if the user has explicitly saved a preference
+  if (agentType === 'claude-code' || agentType === 'opencode') {
+    const savedPref = loadSkipPermissionsSetting()
+    if (savedPref !== null) {
+      return {
+        ...baseConfig,
+        dangerouslySkipPermissions: savedPref,
+      }
     }
   }
 
@@ -393,7 +398,7 @@ export function AgentConfigPanel({
       const sanitizedConfig = sanitizeConfig(lastExecution.config)
       const executionConfig = {
         ...sanitizedConfig,
-        mode: (lastExecution.mode as ExecutionMode) || 'worktree',
+        mode: (lastExecution.mode as ExecutionMode) || 'local',
         baseBranch: lastExecution.target_branch,
       }
       if (isValidExecutionConfig(executionConfig)) {
@@ -404,7 +409,7 @@ export function AgentConfigPanel({
 
     // Base defaults
     const defaults: ExecutionConfig = {
-      mode: 'worktree',
+      mode: 'local',
       cleanupMode: 'manual',
       sessionMode: 'persistent',
     }
@@ -466,7 +471,7 @@ export function AgentConfigPanel({
     }
 
     // Final fallback
-    return 'copilot'
+    return 'opencode'
   })
   const [isHoveringButton, setIsHoveringButton] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -585,7 +590,7 @@ export function AgentConfigPanel({
         const sanitizedConfig = sanitizeConfig(lastExecution.config)
         const executionConfig = {
           ...sanitizedConfig,
-          mode: (lastExecution.mode as ExecutionMode) || 'worktree',
+          mode: (lastExecution.mode as ExecutionMode) || 'local',
           baseBranch: lastExecution.target_branch,
         }
         if (isValidExecutionConfig(executionConfig)) {
@@ -596,7 +601,7 @@ export function AgentConfigPanel({
 
       // Base defaults
       const defaults: ExecutionConfig = {
-        mode: 'worktree',
+        mode: 'local',
         cleanupMode: 'manual',
       }
 
@@ -663,7 +668,7 @@ export function AgentConfigPanel({
       }
 
       // Final fallback
-      return 'copilot'
+      return 'opencode'
     }
 
     setSelectedAgentType(loadAgentTypeForIssue())
@@ -789,7 +794,7 @@ export function AgentConfigPanel({
 
   // Persist skip permissions setting to localStorage whenever it changes
   useEffect(() => {
-    if (selectedAgentType === 'claude-code' && config.agentConfig) {
+    if ((selectedAgentType === 'claude-code' || selectedAgentType === 'opencode') && config.agentConfig) {
       const skipPerms = config.agentConfig.dangerouslySkipPermissions ?? false
       saveSkipPermissionsSetting(skipPerms)
     }

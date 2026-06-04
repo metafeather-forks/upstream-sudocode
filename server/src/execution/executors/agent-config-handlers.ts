@@ -547,7 +547,7 @@ function parseJsonc(text: string): Record<string, unknown> | undefined {
 }
 
 /** Keys to strip from the global config when creating the isolated copy. */
-const GLOBAL_CONFIG_STRIP_KEYS = ["plugin"];
+const GLOBAL_CONFIG_STRIP_KEYS = ["dummy"];
 
 /** Read the user's global opencode config as a parsed object, if present. */
 function readGlobalOpencodeConfig():

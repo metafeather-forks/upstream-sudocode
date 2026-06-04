@@ -445,7 +445,7 @@ export class OrchestratorWorkflowEngine extends BaseWorkflowEngine {
 
     // Build agent config with resume flag
     const agentConfig = this.buildOrchestratorConfig(workflow);
-    const agentType = workflow.config.orchestratorAgentType ?? "claude-code";
+    const agentType = workflow.config.orchestratorAgentType ?? "opencode";
 
     console.log(
       `[OrchestratorWorkflowEngine] Resuming workflow ${workflowId} with session ${sessionId}`

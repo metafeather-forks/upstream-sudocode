@@ -669,11 +669,11 @@ export function CreateWorkflowDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="opencode">Opencode</SelectItem>
                     <SelectItem value="claude-code">Claude Code</SelectItem>
                     <SelectItem value="codex">Codex</SelectItem>
                     <SelectItem value="copilot">Copilot</SelectItem>
                     <SelectItem value="cursor">Cursor</SelectItem>
-                    <SelectItem value="opencode">Opencode</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

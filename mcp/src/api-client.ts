@@ -106,7 +106,7 @@ export interface ShowExecutionResult {
 
 export interface StartExecutionParams {
   issue_id: string;
-  agent_type?: "claude-code" | "codex" | "copilot" | "cursor";
+  agent_type?: "claude-code" | "codex" | "copilot" | "cursor" | "opencode" | "gemini";
   model?: string;
   prompt?: string;
 }
@@ -118,7 +118,7 @@ export interface StartExecutionResult {
 
 export interface StartAdhocExecutionParams {
   prompt: string;
-  agent_type?: "claude-code" | "codex" | "copilot" | "cursor";
+  agent_type?: "claude-code" | "codex" | "copilot" | "cursor" | "opencode" | "gemini";
   model?: string;
 }
 

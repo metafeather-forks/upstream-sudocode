@@ -298,7 +298,7 @@ export function AgentSettingsDialog({
                   {availableAgents && availableAgents.length > 0 && onAgentTypeChange && (
                     <AgentSelector
                       agents={availableAgents}
-                      selectedAgent={agentType || 'copilot'}
+                      selectedAgent={agentType || 'opencode'}
                       onChange={onAgentTypeChange}
                       label="AI Agent"
                       description="Select the AI coding agent to use"
@@ -329,7 +329,7 @@ export function AgentSettingsDialog({
                       <div className="space-y-2">
                         <Label htmlFor="execution-mode">Execution Mode</Label>
                         <Select
-                          value={config.mode || 'worktree'}
+                          value={config.mode || 'local'}
                           onValueChange={(value: ExecutionMode) =>
                             onConfigChange({ mode: value })
                           }

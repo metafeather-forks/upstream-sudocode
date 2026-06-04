@@ -192,7 +192,7 @@ export interface WorkflowConfig {
 
   /**
    * Default agent type for step executions
-   * @default "claude-code"
+   * @default "opencode"
    */
   defaultAgentType: AgentType;
 
