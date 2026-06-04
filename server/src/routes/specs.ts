@@ -22,6 +22,7 @@ import {
   syncEntityToMarkdown,
 } from "../services/export.js";
 import { refreshSpec } from "../services/external-refresh-service.js";
+import { getTags } from "@sudocode-ai/cli/dist/operations/tags.js";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -55,9 +56,23 @@ export function createSpecsRouter(): Router {
       const specs = getAllSpecs(req.project!.db, options);
       console.log(`[specs] GET /api/specs: returned ${specs.length} specs`);
 
+      const tagRows = req.project!.db.prepare(
+        "SELECT entity_id, tag FROM tags WHERE entity_type = ?"
+      ).all("spec") as { entity_id: string; tag: string }[];
+      const tagsMap = new Map<string, string[]>();
+      for (const row of tagRows) {
+        const existing = tagsMap.get(row.entity_id);
+        if (existing) existing.push(row.tag);
+        else tagsMap.set(row.entity_id, [row.tag]);
+      }
+      const data = specs.map(spec => ({
+        ...spec,
+        tags: tagsMap.get(spec.id) || [],
+      }));
+
       res.json({
         success: true,
-        data: specs,
+        data,
       });
     } catch (error) {
       console.error("Error listing specs:", error);
@@ -87,9 +102,11 @@ export function createSpecsRouter(): Router {
         return;
       }
 
+      const tags = getTags(req.project!.db, id, "spec");
+
       res.json({
         success: true,
-        data: spec,
+        data: { ...spec, tags },
       });
     } catch (error) {
       console.error("Error getting spec:", error);

@@ -19,6 +19,7 @@ import { triggerExport, executeExportNow, syncEntityToMarkdown } from "../servic
 import { refreshIssue } from "../services/external-refresh-service.js";
 import * as path from "path";
 import { findExistingEntityFile } from "@sudocode-ai/cli/dist/filename-generator.js";
+import { getTags } from "@sudocode-ai/cli/dist/operations/tags.js";
 import * as fs from "fs";
 
 export function createIssuesRouter(): Router {
@@ -57,9 +58,23 @@ export function createIssuesRouter(): Router {
       const issues = getAllIssues(req.project!.db, options);
       console.log(`[issues] GET /api/issues: returned ${issues.length} issues`);
 
+      const tagRows = req.project!.db.prepare(
+        "SELECT entity_id, tag FROM tags WHERE entity_type = ?"
+      ).all("issue") as { entity_id: string; tag: string }[];
+      const tagsMap = new Map<string, string[]>();
+      for (const row of tagRows) {
+        const existing = tagsMap.get(row.entity_id);
+        if (existing) existing.push(row.tag);
+        else tagsMap.set(row.entity_id, [row.tag]);
+      }
+      const data = issues.map(issue => ({
+        ...issue,
+        tags: tagsMap.get(issue.id) || [],
+      }));
+
       res.json({
         success: true,
-        data: issues,
+        data,
       });
     } catch (error) {
       console.error("Error listing issues:", error);
@@ -89,9 +104,11 @@ export function createIssuesRouter(): Router {
         return;
       }
 
+      const tags = getTags(req.project!.db, id, "issue");
+
       res.json({
         success: true,
-        data: issue,
+        data: { ...issue, tags },
       });
     } catch (error) {
       console.error("Error getting issue:", error);
