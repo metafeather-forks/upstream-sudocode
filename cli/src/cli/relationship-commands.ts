@@ -5,7 +5,10 @@
 import chalk from "chalk";
 import * as path from "path";
 import type Database from "better-sqlite3";
-import { addRelationship } from "../operations/relationships.js";
+import {
+  addRelationship,
+  removeRelationship,
+} from "../operations/relationships.js";
 import { exportToJSONL } from "../export.js";
 import { syncJSONLToMarkdown } from "../sync.js";
 import { getSpec } from "../operations/specs.js";
@@ -112,6 +115,105 @@ export async function handleLink(
   } catch (error) {
     await trackCommand(ctx.outputDir, "link", { from_id: from, to_id: to, type: options.type }, false, Date.now() - startTime);
     console.error(chalk.red("✗ Failed to create relationship"));
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}
+
+export async function handleUnlink(
+  ctx: CommandContext,
+  from: string,
+  to: string,
+  options: LinkOptions
+): Promise<void> {
+  const startTime = Date.now();
+  try {
+    // Validate relationship type
+    if (!isValidRelationshipType(options.type)) {
+      console.error(chalk.red(`✗ Invalid relationship type: ${options.type}`));
+      console.error(
+        chalk.gray(`Valid types: ${getValidRelationshipTypes().join(", ")}`)
+      );
+      process.exit(1);
+    }
+
+    // Determine entity types by checking existence
+    let fromType: "spec" | "issue";
+    let toType: "spec" | "issue";
+
+    // Determine 'from' entity type
+    if (getSpec(ctx.db, from)) {
+      fromType = "spec";
+    } else if (getIssue(ctx.db, from)) {
+      fromType = "issue";
+    } else {
+      console.error(chalk.red(`✗ Entity not found: ${from}`));
+      process.exit(1);
+    }
+
+    // Determine 'to' entity type
+    if (getSpec(ctx.db, to)) {
+      toType = "spec";
+    } else if (getIssue(ctx.db, to)) {
+      toType = "issue";
+    } else {
+      console.error(chalk.red(`✗ Entity not found: ${to}`));
+      process.exit(1);
+    }
+
+    const removed = removeRelationship(
+      ctx.db,
+      from,
+      fromType,
+      to,
+      toType,
+      options.type as any
+    );
+
+    if (!removed) {
+      console.error(chalk.red(`✗ Relationship not found`));
+      console.error(
+        chalk.gray(`${from} ${options.type} → ${to}`)
+      );
+      process.exit(1);
+    }
+
+    // Export to JSONL to persist the removal
+    await exportToJSONL(ctx.db, { outputDir: ctx.outputDir });
+
+    // Sync the "from" entity back to markdown so the relationship is removed from frontmatter
+    if (fromType === "spec") {
+      const spec = getSpec(ctx.db, from);
+      if (spec) {
+        const specPath = path.join(ctx.outputDir, spec.file_path);
+        await syncJSONLToMarkdown(ctx.db, from, "spec", specPath);
+      }
+    } else {
+      const issue = getIssue(ctx.db, from);
+      if (issue) {
+        const issuesDir = path.join(ctx.outputDir, "issues");
+        const issuePath = syncFileWithRename(from, issuesDir, issue.title);
+        await syncJSONLToMarkdown(ctx.db, from, "issue", issuePath);
+      }
+    }
+
+    if (ctx.jsonOutput) {
+      console.log(
+        JSON.stringify({ from, to, type: options.type, removed: true }, null, 2)
+      );
+    } else {
+      console.log(chalk.green("✓ Removed relationship"));
+      console.log(
+        chalk.cyan(from),
+        chalk.yellow(options.type),
+        "→",
+        chalk.cyan(to)
+      );
+    }
+    await trackCommand(ctx.outputDir, "unlink", { from_id: from, to_id: to, type: options.type }, true, Date.now() - startTime);
+  } catch (error) {
+    await trackCommand(ctx.outputDir, "unlink", { from_id: from, to_id: to, type: options.type }, false, Date.now() - startTime);
+    console.error(chalk.red("✗ Failed to remove relationship"));
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }

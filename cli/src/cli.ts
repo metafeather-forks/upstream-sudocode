@@ -28,7 +28,7 @@ import {
   handleIssueClose,
   handleIssueDelete,
 } from "./cli/issue-commands.js";
-import { handleLink } from "./cli/relationship-commands.js";
+import { handleLink, handleUnlink } from "./cli/relationship-commands.js";
 import {
   handleExternalLinkAdd,
   handleExternalLinkUpdate,
@@ -434,6 +434,14 @@ program
   .option("-t, --type <type>", "Relationship type", "references")
   .action(async (from, to, options) => {
     await handleLink(getContext(), from, to, options);
+  });
+
+program
+  .command("unlink <from> <to>")
+  .description("Remove a relationship between entities")
+  .option("-t, --type <type>", "Relationship type", "references")
+  .action(async (from, to, options) => {
+    await handleUnlink(getContext(), from, to, options);
   });
 
 // ============================================================================

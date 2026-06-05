@@ -4,7 +4,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { initDatabase } from "../../../src/db.js";
-import { handleLink } from "../../../src/cli/relationship-commands.js";
+import {
+  handleLink,
+  handleUnlink,
+} from "../../../src/cli/relationship-commands.js";
 import { handleSpecCreate } from "../../../src/cli/spec-commands.js";
 import { handleIssueCreate } from "../../../src/cli/issue-commands.js";
 import { getOutgoingRelationships } from "../../../src/operations/relationships.js";
@@ -377,6 +380,226 @@ describe("Relationship CLI Commands", () => {
       // Verify all relationships exist
       const relationships = getOutgoingRelationships(db, spec1Id, "spec");
       expect(relationships).toHaveLength(3);
+    });
+  });
+
+  describe("handleUnlink", () => {
+    beforeEach(async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+
+      // Create test specs
+      await handleSpecCreate(ctx, "Test Spec 1", {
+        priority: "2",
+        filePath: "specs/test-spec-1.md",
+      });
+      const specId1 = extractSpecId(consoleLogSpy);
+      createdSpecIds.push(specId1);
+
+      consoleLogSpy.mockClear();
+      await handleSpecCreate(ctx, "Test Spec 2", {
+        priority: "2",
+        filePath: "specs/test-spec-2.md",
+      });
+      const specId2 = extractSpecId(consoleLogSpy);
+      createdSpecIds.push(specId2);
+
+      // Create test issues
+      consoleLogSpy.mockClear();
+      await handleIssueCreate(ctx, "Test Issue 1", { priority: "2" });
+      const issueId1 = extractIssueId(consoleLogSpy);
+      createdIssueIds.push(issueId1);
+
+      consoleLogSpy.mockClear();
+      await handleIssueCreate(ctx, "Test Issue 2", { priority: "2" });
+      const issueId2 = extractIssueId(consoleLogSpy);
+      createdIssueIds.push(issueId2);
+
+      consoleLogSpy.mockClear();
+      processExitSpy.mockClear();
+    });
+
+    it("should remove an existing relationship between specs", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+
+      // First create a relationship
+      await handleLink(ctx, spec1Id, spec2Id, { type: "references" });
+      consoleLogSpy.mockClear();
+
+      // Verify it exists
+      let relationships = getOutgoingRelationships(db, spec1Id, "spec");
+      expect(relationships).toHaveLength(1);
+
+      // Remove it
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "references" });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✓ Removed relationship")
+      );
+
+      // Verify it's gone
+      relationships = getOutgoingRelationships(db, spec1Id, "spec");
+      expect(relationships).toHaveLength(0);
+    });
+
+    it("should remove an existing relationship between issues", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const issue1Id = createdIssueIds[0];
+      const issue2Id = createdIssueIds[1];
+
+      // First create a relationship
+      await handleLink(ctx, issue1Id, issue2Id, { type: "blocks" });
+      consoleLogSpy.mockClear();
+
+      // Remove it
+      await handleUnlink(ctx, issue1Id, issue2Id, { type: "blocks" });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✓ Removed relationship")
+      );
+
+      // Verify it's gone
+      const relationships = getOutgoingRelationships(db, issue1Id, "issue");
+      expect(relationships).toHaveLength(0);
+    });
+
+    it("should error when relationship does not exist", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+
+      // Try to remove a non-existent relationship
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "references" });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✗ Relationship not found")
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it("should handle non-existent from entity", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+
+      await handleUnlink(ctx, "non-existent", spec1Id, { type: "references" });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✗ Entity not found: non-existent")
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it("should handle non-existent to entity", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+
+      await handleUnlink(ctx, spec1Id, "non-existent", { type: "references" });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✗ Entity not found: non-existent")
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it("should reject invalid relationship type", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "invalid-type" });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("✗ Invalid relationship type: invalid-type")
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it("should output JSON when jsonOutput is true", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: true };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+
+      // First create a relationship
+      await handleLink(ctx, spec1Id, spec2Id, { type: "references" });
+      consoleLogSpy.mockClear();
+
+      // Remove it with JSON output
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "references" });
+
+      const output = consoleLogSpy.mock.calls[0][0];
+      const parsed = JSON.parse(output);
+
+      expect(parsed).toMatchObject({
+        from: spec1Id,
+        to: spec2Id,
+        type: "references",
+        removed: true,
+      });
+    });
+
+    it("should only remove the specified relationship type", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+      const issue1Id = createdIssueIds[0];
+
+      // Create multiple relationships
+      await handleLink(ctx, spec1Id, spec2Id, { type: "references" });
+      await handleLink(ctx, spec1Id, issue1Id, { type: "depends-on" });
+      consoleLogSpy.mockClear();
+
+      // Remove only one
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "references" });
+
+      // Verify only the targeted one is removed
+      const relationships = getOutgoingRelationships(db, spec1Id, "spec");
+      expect(relationships).toHaveLength(1);
+      expect(relationships[0]).toMatchObject({
+        from_id: spec1Id,
+        to_id: issue1Id,
+        relationship_type: "depends-on",
+      });
+    });
+
+    it("should sync removal to markdown for spec entities", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const spec1Id = createdSpecIds[0];
+      const spec2Id = createdSpecIds[1];
+
+      // Create and then remove a relationship
+      await handleLink(ctx, spec1Id, spec2Id, { type: "references" });
+      consoleLogSpy.mockClear();
+      await handleUnlink(ctx, spec1Id, spec2Id, { type: "references" });
+
+      // Verify markdown file no longer has the relationship
+      const specPath = path.join(tempDir, "specs", "test-spec-1.md");
+      expect(fs.existsSync(specPath)).toBe(true);
+
+      const content = fs.readFileSync(specPath, "utf-8");
+      expect(content).not.toContain(`to_id: ${spec2Id}`);
+    });
+
+    it("should sync removal to markdown for issue entities", async () => {
+      const ctx = { db, outputDir: tempDir, jsonOutput: false };
+      const issue1Id = createdIssueIds[0];
+      const issue2Id = createdIssueIds[1];
+
+      // Create and then remove a relationship
+      await handleLink(ctx, issue1Id, issue2Id, { type: "blocks" });
+      consoleLogSpy.mockClear();
+      await handleUnlink(ctx, issue1Id, issue2Id, { type: "blocks" });
+
+      // Verify markdown file no longer has the relationship
+      const issuePath = path.join(
+        tempDir,
+        "issues",
+        generateUniqueFilename("Test Issue 1", issue1Id)
+      );
+      expect(fs.existsSync(issuePath)).toBe(true);
+
+      const content = fs.readFileSync(issuePath, "utf-8");
+      expect(content).not.toContain(`to_id: ${issue2Id}`);
     });
   });
 });
