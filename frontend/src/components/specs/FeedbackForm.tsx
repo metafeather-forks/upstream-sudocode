@@ -22,6 +22,7 @@ interface FeedbackFormProps {
   issueId?: string // Legacy prop for backward compatibility
   lineNumber?: number
   textSnippet?: string
+  sectionHeading?: string
   onSubmit: (data: { type: FeedbackType; content: string; anchor?: FeedbackAnchor }) => void
   onCancel: () => void
   className?: string
@@ -37,6 +38,7 @@ export function FeedbackForm({
   issueId, // Legacy prop
   lineNumber,
   textSnippet,
+  sectionHeading,
   onSubmit,
   onCancel,
   className = '',
@@ -82,6 +84,7 @@ export function FeedbackForm({
         anchor = {
           line_number: lineNumber,
           text_snippet: textSnippet,
+          ...(lineNumber && sectionHeading ? { section_heading: sectionHeading } : {}),
           anchor_status: 'valid',
           last_verified_at: new Date().toISOString(),
         }
@@ -107,6 +110,9 @@ export function FeedbackForm({
       {(lineNumber || textSnippet) && (
         <div className="rounded-md bg-muted/50 p-2 text-sm">
           {lineNumber && <div className="font-medium">Line {lineNumber}</div>}
+          {lineNumber && sectionHeading && (
+            <div className="text-muted-foreground">Section: {sectionHeading}</div>
+          )}
           {textSnippet && (
             <div className="text-muted-foreground">
               "{textSnippet.slice(0, 60)}

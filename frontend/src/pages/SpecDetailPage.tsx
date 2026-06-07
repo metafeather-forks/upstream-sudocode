@@ -270,6 +270,19 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
     )
   }, [availableParentSpecs, parentSearchTerm])
 
+  // Resolve the nearest section heading for the selected line
+  const sectionHeading = useMemo(() => {
+    if (!selectedLine || !content) return undefined
+    const lines = content.split('\n')
+    for (let i = selectedLine - 1; i >= 0; i--) {
+      const match = lines[i]?.match(/^(#{1,6})\s+(.+?)(\r)?$/)
+      if (match) {
+        return match[2].trim()
+      }
+    }
+    return undefined
+  }, [selectedLine, content])
+
   // Refs for auto-save and position tracking
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const updateSpecRef = useRef(updateSpec)
@@ -1215,6 +1228,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                     <AddFeedbackDialog
                       issues={issues}
                       lineNumber={selectedLine || undefined}
+                      sectionHeading={sectionHeading}
                       onSubmit={handleCreateFeedback}
                       triggerButton={
                         <Button variant="secondary" size="sm">

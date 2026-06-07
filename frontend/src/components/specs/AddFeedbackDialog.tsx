@@ -16,6 +16,7 @@ interface AddFeedbackDialogProps {
   issues: Issue[]
   lineNumber?: number
   textSnippet?: string
+  sectionHeading?: string
   onSubmit: (data: {
     issueId: string
     type: FeedbackType
@@ -38,6 +39,7 @@ export function AddFeedbackDialog({
   issues,
   lineNumber,
   textSnippet,
+  sectionHeading,
   onSubmit,
   triggerButton,
 }: AddFeedbackDialogProps) {
@@ -79,6 +81,7 @@ export function AddFeedbackDialog({
           onIssueSelect={setSelectedIssueId}
           lineNumber={lineNumber}
           textSnippet={textSnippet}
+          sectionHeading={sectionHeading}
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
         />
