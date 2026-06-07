@@ -101,6 +101,7 @@ export default function SpecDetailPage() {
   }, [id, workflows])
 
   const [selectedLine, setSelectedLine] = useState<number | null>(null)
+  const [scrollToFeedbackId, setScrollToFeedbackId] = useState<string | null>(null)
   const [_selectedText, setSelectedText] = useState<string | null>(null) // Reserved for future text selection feature
   const [showFeedbackPanel, setShowFeedbackPanel] = useState(() => {
     const stored = localStorage.getItem(SHOW_FEEDBACK_STORAGE_KEY)
@@ -497,6 +498,8 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
     } catch (error) {
       console.error('Failed to parse feedback anchor:', error)
     }
+    // Scroll feedback panel to the clicked card
+    setScrollToFeedbackId(fb.id)
   }
 
   const handleTitleChange = (value: string) => {
@@ -1192,6 +1195,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                 onDelete={handleFeedbackDelete}
                 onDeleteRelationship={handleDeleteRelationship}
                 onCreateRelationship={handleCreateRelationship}
+                scrollToFeedbackId={scrollToFeedbackId}
                 onScrollToHeading={(heading) => {
                   // Find TOC item by text content match, then scroll using data-toc-id
                   const tocItems = editorContainerRef.current?.querySelectorAll('[data-toc-id]')

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { FeedbackCard } from './FeedbackCard'
 import type {
   IssueFeedback,
@@ -33,6 +33,7 @@ interface AlignedFeedbackPanelProps {
     relationshipType: RelationshipType
   ) => void
   onScrollToHeading?: (heading: string) => void
+  scrollToFeedbackId?: string | null
 }
 
 /**
@@ -67,6 +68,7 @@ export function AlignedFeedbackPanel({
   onDeleteRelationship,
   onCreateRelationship,
   onScrollToHeading,
+  scrollToFeedbackId,
 }: AlignedFeedbackPanelProps) {
   const [showAddRelationship, setShowAddRelationship] = useState(false)
   const [isRelationshipsCollapsed, setIsRelationshipsCollapsed] = useState(() => {
@@ -93,6 +95,18 @@ export function AlignedFeedbackPanel({
     )
   }, [isRelationshipsCollapsed])
 
+  // Scroll to feedback card when scrollToFeedbackId changes
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!scrollToFeedbackId) return
+    const el = panelRef.current?.querySelector(
+      `[data-feedback-id="${scrollToFeedbackId}"]`
+    )
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [scrollToFeedbackId])
+
   // Sort feedback by created_at
   const sortedFeedback = useMemo(() => {
     return [...feedback].sort(
@@ -102,6 +116,7 @@ export function AlignedFeedbackPanel({
 
   return (
     <div
+      ref={panelRef}
       className={`flex h-full w-64 flex-col bg-background pr-4 sm:w-80 md:w-96 lg:w-[28rem] xl:w-[30rem] 2xl:w-[40rem] ${className}`}
     >
       {/* Relationships Section */}
@@ -176,7 +191,7 @@ export function AlignedFeedbackPanel({
           const anchor = parseAnchor(fb.anchor)
 
           return (
-            <div key={fb.id} className="w-full">
+            <div key={fb.id} data-feedback-id={fb.id} className="w-full">
               {/* Location indicator */}
               {anchor?.section_heading && (
                 <button
