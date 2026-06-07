@@ -291,9 +291,6 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const scrollableContainerRef = useRef<HTMLDivElement>(null)
 
-  // Track feedback positions for aligned panel
-
-
   // Keep refs in sync with latest values
   useEffect(() => {
     updateSpecRef.current = updateSpec
