@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { FeedbackCard } from './FeedbackCard'
-import { useCollisionFreePositions } from '@/hooks/useCollisionFreePositions'
 import type {
   IssueFeedback,
   FeedbackAnchor,
@@ -19,7 +18,6 @@ const RELATIONSHIPS_COLLAPSED_STORAGE_KEY = 'sudocode:specs:showRelationshipsCol
 
 interface AlignedFeedbackPanelProps {
   feedback: IssueFeedback[]
-  positions: Map<string, number>
   onFeedbackClick?: (feedback: IssueFeedback) => void
   onDismiss?: (id: string) => void
   onDelete?: (id: string) => void
@@ -34,6 +32,7 @@ interface AlignedFeedbackPanelProps {
     toType: EntityType,
     relationshipType: RelationshipType
   ) => void
+  onScrollToHeading?: (heading: string) => void
 }
 
 /**
@@ -49,15 +48,14 @@ function parseAnchor(anchor: string | undefined): FeedbackAnchor | null {
 }
 
 /**
- * Feedback panel that displays comments aligned with their document positions
+ * Feedback panel that displays all feedback in a vertical list sorted by creation date.
  *
- * - General comments (no anchor) are shown in a sticky section at the top
- * - Anchored comments are positioned with collision detection to prevent overlaps
- * - Visual connectors show the relationship between displaced feedback and their anchor points
+ * - Each card with a section_heading anchor shows a clickable "§ Heading" badge
+ * - Each card with only a line_number shows "L{n}" text
+ * - General comments (no anchor) render without location indicator
  */
 export function AlignedFeedbackPanel({
   feedback,
-  positions,
   onFeedbackClick,
   onDismiss,
   onDelete,
@@ -68,10 +66,8 @@ export function AlignedFeedbackPanel({
   currentEntityType = 'spec',
   onDeleteRelationship,
   onCreateRelationship,
+  onScrollToHeading,
 }: AlignedFeedbackPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  const feedbackRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const [measuredHeights, setMeasuredHeights] = useState<Map<string, number>>(new Map())
   const [showAddRelationship, setShowAddRelationship] = useState(false)
   const [isRelationshipsCollapsed, setIsRelationshipsCollapsed] = useState(() => {
     const stored = localStorage.getItem(RELATIONSHIPS_COLLAPSED_STORAGE_KEY)
@@ -97,98 +93,12 @@ export function AlignedFeedbackPanel({
     )
   }, [isRelationshipsCollapsed])
 
-  // Measure actual heights of rendered feedback cards
-  const measureHeights = useCallback(() => {
-    const newHeights = new Map<string, number>()
-    let hasChanges = false
-
-    feedback.forEach((fb) => {
-      const element = feedbackRefs.current.get(fb.id)
-      if (element) {
-        const rect = element.getBoundingClientRect()
-        const height = rect.height
-        const previousHeight = measuredHeights.get(fb.id)
-
-        // Only update if height changed significantly (> 5px difference)
-        if (previousHeight === undefined || Math.abs(height - previousHeight) > 5) {
-          newHeights.set(fb.id, height)
-          hasChanges = true
-        } else {
-          newHeights.set(fb.id, previousHeight)
-        }
-      }
-    })
-
-    if (hasChanges) {
-      setMeasuredHeights(newHeights)
-    }
-  }, [feedback, measuredHeights])
-
-  // Measure heights on mount, when feedback changes, and periodically
-  useEffect(() => {
-    // Initial measurement with delay to allow rendering
-    const initialTimer = setTimeout(measureHeights, 100)
-
-    // Periodic measurements to catch expand/collapse changes
-    const interval = setInterval(measureHeights, 500)
-
-    // Measure on window resize
-    const handleResize = () => {
-      measureHeights()
-    }
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      clearTimeout(initialTimer)
-      clearInterval(interval)
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [measureHeights])
-
-  // Ref callback to register feedback elements
-  const setFeedbackRef = useCallback((id: string) => {
-    return (el: HTMLDivElement | null) => {
-      if (el) {
-        feedbackRefs.current.set(id, el)
-      } else {
-        feedbackRefs.current.delete(id)
-      }
-    }
-  }, [])
-
-  // Prepare positions for all feedback, treating general comments as position 0
-  const allFeedbackPositions = useMemo(() => {
-    const posMap = new Map<string, number>()
-    const minTopOffset = 16 // Minimum 16px from top (pt-4)
-
-    feedback.forEach((fb) => {
-      const anchor = parseAnchor(fb.anchor)
-
-      // General comments (no anchor) go to position with min offset
-      if (!anchor || !anchor.line_number) {
-        posMap.set(fb.id, minTopOffset)
-      } else {
-        // Anchored comments require an explicit position
-        const pos = positions.get(fb.id)
-        if (pos !== undefined) {
-          // Ensure minimum top position
-          posMap.set(fb.id, Math.max(pos, minTopOffset))
-        }
-        // If no position, don't add to map (feedback won't render)
-      }
-    })
-
-    return posMap
-  }, [feedback, positions])
-
-  // Apply collision detection to prevent overlapping feedback cards
-  // Using measured heights when available, fallback to conservative estimate
-  const collisionFreePositions = useCollisionFreePositions({
-    positions: allFeedbackPositions,
-    cardHeight: 130, // Conservative height estimate (collapsed state)
-    minSpacing: 8, // Minimum gap between cards for better spacing
-    measuredHeights: measuredHeights, // Use actual measured heights
-  })
+  // Sort feedback by created_at
+  const sortedFeedback = useMemo(() => {
+    return [...feedback].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+  }, [feedback])
 
   return (
     <div
@@ -260,45 +170,34 @@ export function AlignedFeedbackPanel({
       {/* Add Feedback Button */}
       {addFeedbackButton && <div className="p-2">{addFeedbackButton}</div>}
 
-      {/* All feedback - absolutely positioned with collision detection */}
-      <div className="relative min-h-full flex-1">
-        <div ref={panelRef} className="relative w-full pt-4">
-          {/* Feedback cards */}
-          {feedback.map((fb) => {
-            const position = collisionFreePositions.get(fb.id)
+      {/* All feedback in a vertical list */}
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+        {sortedFeedback.map((fb) => {
+          const anchor = parseAnchor(fb.anchor)
 
-            // Don't render if position is not yet calculated
-            if (!position) return null
+          return (
+            <div key={fb.id} className="w-full">
+              {/* Location indicator */}
+              {anchor?.section_heading && (
+                <button
+                  className="mb-1 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => onScrollToHeading?.(anchor.section_heading!)}
+                >
+                  § {anchor.section_heading}
+                </button>
+              )}
 
-            return (
-              <div
-                key={fb.id}
-                ref={setFeedbackRef(fb.id)}
-                className="absolute w-full px-1"
-                style={{ top: `${position.actualTop}px`, zIndex: 10 }}
-              >
-                <FeedbackCard
-                  feedback={fb}
-                  onClick={() => onFeedbackClick?.(fb)}
-                  onDismiss={onDismiss ? () => onDismiss(fb.id) : undefined}
-                  onDelete={onDelete ? () => onDelete(fb.id) : undefined}
-                  maxHeight={800} // Max height before scrolling
-                  isCompact={false}
-                />
-              </div>
-            )
-          })}
-
-          {/* Spacer to ensure panel height matches content */}
-          {feedback.length > 0 && (
-            <div
-              style={{
-                height: `${Math.max(...Array.from(collisionFreePositions.values()).map((p) => p.actualTop + p.height)) + 100}px`,
-                pointerEvents: 'none',
-              }}
-            />
-          )}
-        </div>
+              <FeedbackCard
+                feedback={fb}
+                onClick={() => onFeedbackClick?.(fb)}
+                onDismiss={onDismiss ? () => onDismiss(fb.id) : undefined}
+                onDelete={onDelete ? () => onDelete(fb.id) : undefined}
+                maxHeight={800}
+                isCompact={false}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )

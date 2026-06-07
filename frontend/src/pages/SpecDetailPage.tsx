@@ -15,7 +15,7 @@ import { TableOfContentsPanel } from '@/components/specs/TableOfContentsPanel'
 import { CreateWorkflowDialog } from '@/components/workflows'
 import { AdhocExecutionDialog } from '@/components/executions/AdhocExecutionDialog'
 import { ExternalLinkBadge, RefreshConflictDialog, StaleLinkWarning } from '@/components/import'
-import { useFeedbackPositions } from '@/hooks/useFeedbackPositions'
+
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -278,7 +278,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
   const scrollableContainerRef = useRef<HTMLDivElement>(null)
 
   // Track feedback positions for aligned panel
-  const feedbackPositions = useFeedbackPositions(feedback, editorContainerRef)
+
 
   // Keep refs in sync with latest values
   useEffect(() => {
@@ -1181,38 +1181,47 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
               </div>
             </div>
 
-            {/* Aligned Feedback Panel - Absolutely positioned, scrolls with page */}
+            {/* Feedback Panel - Sidebar */}
             {showFeedbackPanel && (
-              <div className="pointer-events-none absolute right-0 top-0">
-                <div className="pointer-events-auto sticky top-0">
-                  <AlignedFeedbackPanel
-                    feedback={feedback}
-                    positions={feedbackPositions}
-                    relationships={relationships}
-                    currentEntityId={id}
-                    onFeedbackClick={handleFeedbackClick}
-                    onDismiss={handleFeedbackDismiss}
-                    onDelete={handleFeedbackDelete}
-                    onDeleteRelationship={handleDeleteRelationship}
-                    onCreateRelationship={handleCreateRelationship}
-                    addFeedbackButton={
-                      <div className="flex justify-center">
-                        <AddFeedbackDialog
-                          issues={issues}
-                          lineNumber={selectedLine || undefined}
-                          onSubmit={handleCreateFeedback}
-                          triggerButton={
-                            <Button variant="secondary" size="sm">
-                              <MessageSquarePlus className="mr-2 h-4 w-4" />
-                              Add Feedback
-                            </Button>
-                          }
-                        />
-                      </div>
+              <AlignedFeedbackPanel
+                feedback={feedback}
+                relationships={relationships}
+                currentEntityId={id}
+                onFeedbackClick={handleFeedbackClick}
+                onDismiss={handleFeedbackDismiss}
+                onDelete={handleFeedbackDelete}
+                onDeleteRelationship={handleDeleteRelationship}
+                onCreateRelationship={handleCreateRelationship}
+                onScrollToHeading={(heading) => {
+                  // Find TOC item by text content match, then scroll using data-toc-id
+                  const tocItems = editorContainerRef.current?.querySelectorAll('[data-toc-id]')
+                  if (!tocItems) return
+                  for (const item of tocItems) {
+                    if (item.textContent?.trim() === heading) {
+                      const tocId = item.getAttribute('data-toc-id')
+                      if (tocId) {
+                        handleTocItemClick(tocId)
+                      }
+                      break
                     }
-                  />
-                </div>
-              </div>
+                  }
+                }}
+                addFeedbackButton={
+                  <div className="flex justify-center">
+                    <AddFeedbackDialog
+                      issues={issues}
+                      lineNumber={selectedLine || undefined}
+                      onSubmit={handleCreateFeedback}
+                      triggerButton={
+                        <Button variant="secondary" size="sm">
+                          <MessageSquarePlus className="mr-2 h-4 w-4" />
+                          Add Feedback
+                        </Button>
+                      }
+                    />
+                  </div>
+                }
+              />
             )}
           </div>
         </div>
