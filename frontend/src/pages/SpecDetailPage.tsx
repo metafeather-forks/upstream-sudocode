@@ -896,15 +896,12 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
             </div>
           )}
 
-          <div ref={scrollableContainerRef} className="relative flex-1 overflow-y-auto">
-            <div
-              ref={editorContainerRef}
-              className={`px-3 py-4 sm:px-6 lg:px-12 xl:px-16 ${
-                showFeedbackPanel
-                  ? 'pr-[calc(16rem+1rem)] sm:pr-[calc(20rem+1rem)] md:pr-[calc(24rem+1rem)] lg:pr-[calc(28rem+1rem)] xl:pr-[calc(30rem+1rem)] 2xl:pr-[calc(40rem+1rem)]'
-                  : ''
-              }`}
-            >
+          <div className="flex flex-1 overflow-hidden">
+            <div ref={scrollableContainerRef} className="relative flex-1 overflow-y-auto">
+              <div
+                ref={editorContainerRef}
+                className="px-3 py-4 sm:px-6 lg:px-12 xl:px-16"
+              >
               <div className="mx-auto max-w-full space-y-3">
                 {/* Parent/Children info */}
                 <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -1192,6 +1189,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                   </Card>
                 )}
               </div>
+              </div>
             </div>
 
             {/* Feedback Panel - Sidebar */}
@@ -1236,6 +1234,7 @@ First call \`show_spec\` with spec_id "${spec.id}" to retrieve the full spec con
                     />
                   </div>
                 }
+                className="overflow-y-auto border-l"
               />
             )}
           </div>
